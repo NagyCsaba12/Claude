@@ -9,8 +9,10 @@
 | `tecf/brain.py` | Agy: modellválasztás, kontextus-összeállítás (RAG), eszközhasználati ciklus, naplózás |
 | `tecf/learning.py` | Tanuló üzem, tanulás más AI-któl, fájlfeldolgozás, tény kivonás, önreflexió, tanterv |
 | `tecf/bootstrap.py` | Alaptudás: hivatalos dokumentációk bejárása, RFC-k, Wikipedia, gyártói dokumentáció |
-| `tecf/providers/` | 26 AI szolgáltató név szerint, egységes kliens (OpenAI, Anthropic, Gemini, Cohere formátum) |
+| `tecf/providers/` | 27 AI szolgáltató név szerint, egységes kliens (OpenAI, Anthropic, Gemini, Cohere formátum) |
 | `tecf/tools/` | Eszközök: `system`, `files`, `documents`, `web`, `network` |
+| `tecf/llm/` | Saját nyelvi modell: hardver felmérés, GPT modell, BPE tokenizáló, szöveggyűjtés, tanítás, használat |
+| `tecf/gui.py` | Asztali ablak |
 | `tecf/server.py` | Helyi, OpenAI-kompatibilis HTTP API |
 | `tecf/cli.py` | Parancssori felület |
 

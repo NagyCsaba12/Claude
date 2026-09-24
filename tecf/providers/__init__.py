@@ -34,6 +34,8 @@ PROVIDERS: dict[str, ProviderSpec] = {p.name: p for p in [
     # ---- Helyi, offline futó motorok ----
     ProviderSpec("ollama", "Ollama (helyi)", "openai", "http://localhost:11434/v1", "qwen3:8b",
                  local=True, note="Offline. Telepítés: ollama.com, majd `ollama pull qwen3:8b`"),
+    ProviderSpec("tecf-sajat", "TecF saját modell (nulláról tanított)", "native", "", "sajat", local=True,
+                 note="Saját, ezen a gépen tanított modell: tecf model build"),
     ProviderSpec("lmstudio", "LM Studio (helyi)", "openai", "http://localhost:1234/v1", "local-model", local=True),
     ProviderSpec("llamacpp", "llama.cpp server (helyi)", "openai", "http://localhost:8080/v1", "local-model",
                  local=True),
@@ -114,7 +116,19 @@ class Provider:
     def label(self) -> str:
         return f"{self.spec.name}:{self.model}"
 
+    def _own_root(self):
+        from pathlib import Path
+
+        from tecf.config import Config
+        return Path(self.base_url) if self.base_url else Config.load().root / "sajat_modell"
+
     def available(self) -> bool:
+        if self.spec.style == "native":
+            try:
+                import torch  # noqa: F401
+            except ImportError:
+                return False
+            return (self._own_root() / "model.pt").exists()
         if self.spec.local:
             try:
                 urllib.request.urlopen(self.base_url + "/models", timeout=2)
@@ -126,6 +140,13 @@ class Provider:
     def chat(self, messages: list[dict], system: str = "", temperature: float = 0.3,
              max_tokens: int = 2048) -> str:
         style = self.spec.style
+        if style == "native":
+            from tecf.llm.infer import OwnModel
+            try:
+                return OwnModel.get(self._own_root()).chat(messages, system, max(temperature, 0.5),
+                                                           min(max_tokens, 400))
+            except Exception as e:
+                raise ProviderError(f"Saját modell hiba: {e}") from e
         if style == "anthropic":
             data = _post(f"{self.base_url}/messages",
                          {"model": self.model, "system": system, "messages": messages,
@@ -168,4 +189,6 @@ def get_provider(name: str, keys: dict[str, str] | None = None, model: str | Non
     keys = keys or {}
     key = keys.get(name) or (os.environ.get(spec.env_key, "") if spec.env_key else "")
     base = keys.get(f"{name}_url") or None
+    if spec.style == "native":
+        model = spec.default_model
     return Provider(spec, key, model or keys.get(f"{name}_model"), base)

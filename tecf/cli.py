@@ -17,6 +17,13 @@
   tecf status                    – tudásbázis statisztika
   tecf export <fájl.jsonl>       – finomhangoló adatok exportja
   tecf serve [--port 8765]       – helyi, OpenAI-kompatibilis API szerver
+
+  SAJÁT NYELVI MODELL (nulláról, a gép kapacitásához méretezve):
+  tecf model info                 – hardver, ajánlott modellméret, állapot
+  tecf model build --hours 8      – mindent egyben: szöveggyűjtés, tokenizáló, tanítás
+  tecf model corpus | prepare | train --minutes 60 [--stage sft]   – lépésenként
+  tecf model test "szöveg"        – kipróbálás
+  tecf model use [--off]          – beállítás a TecF Ai modelljeként
 """
 from __future__ import annotations
 
@@ -186,6 +193,51 @@ def cmd_export(cfg: Config, a) -> None:
     print(f"{n} példa exportálva: {a.file}")
 
 
+def _mix(items: list[str] | None) -> dict[str, int] | None:
+    """'wiki-hu=500 code=100' -> {'wiki-hu': 500, 'code': 100}"""
+    if not items:
+        return None
+    from tecf.llm.corpus import DEFAULT_MIX
+    return {k: int(v) if v else DEFAULT_MIX.get(k, 200) for k, _, v in (i.partition("=") for i in items)}
+
+
+def cmd_model(cfg: Config, a) -> None:
+    try:
+        from tecf.llm import pipeline
+    except ImportError as e:
+        sys.exit(f"Hiányzó csomag ({e.name}). Telepítsd: pip install -r requirements-train.txt")
+    from tecf.llm import model_dir
+    act = a.action
+    if act == "info":
+        print(pipeline.status(cfg))
+        from tecf.llm.corpus import SOURCES
+        print("\nLetölthető szöveggyűjtemények (tecf model corpus -s név=MB ...):")
+        for n, src in SOURCES.items():
+            print(f"  {n:<12} {src[5]}")
+    elif act == "corpus":
+        pipeline.collect(cfg, _mix(a.sources))
+    elif act == "prepare":
+        pipeline.prepare(cfg)
+    elif act == "train":
+        from tecf.llm.train import train
+        if a.fresh:
+            pipeline.reset(cfg)
+            pipeline.prepare(cfg)
+        train(model_dir(cfg.root), a.stage, a.minutes, a.size)
+    elif act == "build":
+        pipeline.build(cfg, a.hours, _mix(a.sources), download=not a.no_download, fresh=a.fresh)
+        print("\nKipróbálás: tecf model test \"Mi az a VLAN?\"   Beállítás: tecf model use")
+    elif act == "test":
+        from tecf.llm.infer import OwnModel
+        m = OwnModel.get(model_dir(cfg.root))
+        prompt = " ".join(a.text) or "A számítógép-hálózat"
+        print(f"[{m.info}]\n")
+        print(m.chat([{"role": "user", "content": prompt}]) if a.chat else prompt + " " + m.complete(prompt))
+    elif act == "use":
+        pipeline.use(cfg, not a.off)
+        print("A TecF Ai mostantól a saját modellt használja." if not a.off else "Visszaállítva az Ollama modellre.")
+
+
 def cmd_serve(cfg: Config, a) -> None:
     from tecf.server import serve
     serve(cfg, a.host, a.port)
@@ -241,6 +293,19 @@ def build_parser() -> argparse.ArgumentParser:
     p = sp.add_parser("export")
     p.add_argument("file")
     p.set_defaults(fn=cmd_export)
+    p = sp.add_parser("model", help="saját nyelvi modell")
+    p.add_argument("action", choices=["info", "corpus", "prepare", "train", "build", "test", "use"])
+    p.add_argument("text", nargs="*", help="test: kiinduló szöveg")
+    p.add_argument("-s", "--sources", nargs="*", help="forrás=MB, pl. wiki-hu=500 code=100")
+    p.add_argument("--hours", type=float, default=4, help="build: teljes tanítási idő")
+    p.add_argument("--minutes", type=float, default=60, help="train: tanítási idő")
+    p.add_argument("--stage", choices=["pretrain", "sft"], default="pretrain")
+    p.add_argument("--size", default="auto", help="auto | mini | kicsi | kozepes | nagy | xl")
+    p.add_argument("--fresh", action="store_true", help="új modell a nulláról")
+    p.add_argument("--no-download", action="store_true", help="csak a saját tudásbázisból tanul")
+    p.add_argument("--chat", action="store_true", help="test: beszélgetés formátumban")
+    p.add_argument("--off", action="store_true", help="use: vissza az Ollamára")
+    p.set_defaults(fn=cmd_model)
     p = sp.add_parser("serve")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8765)

@@ -13,7 +13,7 @@ működik, és folyamatosan tanul a netről, a dokumentumaidból, más AI-któl 
 | 🌐 **Internetes kutatás** | keresés (API kulcs nélkül), oldalak letöltése, a `robots.txt` szabályait betartja |
 | 🔌 **Hálózati eszközök** | ping, portellenőrzés, helyi hálózat felderítése, DNS; Cisco, MikroTik, Juniper, Aruba, HP, Huawei, Fortinet, Palo Alto eszközök SSH programozása (show / configure / backup) |
 | 🧠 **Önálló tanulás** | tanuló üzem, tudáshiány felismerése, tényeket von ki, altémákat keres, tanul a rossz válaszaiból |
-| 🤖 **Más AI-k** | 26 szolgáltató név szerint (helyi és felhős), ezektől is tud tanulni |
+| 🤖 **Más AI-k** | 27 szolgáltató név szerint (helyi és felhős), ezektől is tud tanulni |
 | 🔗 **Saját API** | OpenAI-kompatibilis helyi szerver, így más programok is használhatják |
 
 ![TecF Ai ablak](docs/tecf_gui.png)
@@ -98,7 +98,7 @@ tecf serve                             # helyi API: http://127.0.0.1:8765/v1/cha
 `tecf keys set <név> <kulcs>` (a kulcs a `D:\TecFAi\config\api_keys.json` fájlba kerül), vagy
 környezeti változóval.
 
-**Helyi (offline):** Ollama, LM Studio, llama.cpp, LocalAI, Jan
+**Helyi (offline):** TecF saját modell, Ollama, LM Studio, llama.cpp, LocalAI, Jan
 **Felhő:** Anthropic Claude, OpenAI GPT, Google Gemini, Mistral, Cohere, xAI Grok, DeepSeek, Groq,
 Perplexity, Together AI, OpenRouter, Fireworks, Cerebras, Hugging Face, NVIDIA NIM, Alibaba Qwen,
 Moonshot Kimi, Zhipu GLM, AI21, SambaNova, Azure OpenAI
@@ -131,6 +131,48 @@ A `config.json` fájlban:
 4. **Megerősítés:** az ismételten megtanult tények megbízhatósága nő, és a keresésnél előrébb kerülnek.
 5. **Finomhangolás (haladó):** `tecf export tanito.jsonl` exportálja a jó válaszokat, amelyekkel
    a helyi modell LoRA-val továbbtanítható (pl. Unsloth vagy LLaMA-Factory segítségével), majd Ollamába importálható.
+
+## Saját nyelvi modell (nulláról, a gép kapacitásához méretezve)
+
+A TecF Ai egy **teljesen saját**, a te gépeden, a nulláról tanított nyelvi modellt is fel tud építeni.
+Az ablakban ehhez a **🧬 Saját modell** gomb kell, parancssorban pedig:
+
+```
+tecf model info              # hardver felmérés, ajánlott modellméret
+tecf model build --hours 8   # mindent egyben: szöveggyűjtés, tokenizáló, tanítás, beszélgetésre hangolás
+tecf model test "A VLAN"     # kipróbálás
+tecf model use               # a TecF Ai ezt használja (vissza: tecf model use --off)
+```
+
+**Hogyan működik:**
+1. **Hardver felmérés:** a program megnézi a videokártyát (VRAM), a memóriát és a processzort, és
+   kiválasztja a legnagyobb modellt, amelyet a gép még tanítani tud:
+
+   | Méret | Paraméter | Kell hozzá |
+   |---|---|---|
+   | mini | ~5 millió | bármilyen gép (CPU) |
+   | kicsi | ~17 millió | erős CPU (8+ mag, 16 GB RAM) vagy kis GPU |
+   | kozepes | ~110 millió (GPT-2 méret) | NVIDIA 6–16 GB VRAM |
+   | nagy | ~336 millió | NVIDIA 16+ GB VRAM |
+   | xl | ~730 millió | NVIDIA 40+ GB VRAM |
+
+   A méretet az adatmennyiség is korlátozza: kevés szövegen a nagy modell csak bemagolja az anyagot.
+2. **Szöveggyűjtés:** a saját tudásbázis, a jónak értékelt beszélgetések, valamint nyílt, jó minőségű
+   gyűjtemények: magyar és angol Wikipédia, FineWeb-2 magyar, FineWeb-Edu, Python kód, és SmolTalk
+   beszélgetések a beszélgetésre hangoláshoz. Alapból kb. 2,3 GB, ez állítható:
+   `tecf model corpus -s wiki-hu=1000 fineweb2-hu=2000`.
+3. **Saját tokenizáló** (BPE), amely a magyar ékezetes szöveget is hatékonyan kezeli.
+4. **Előtanítás** (a nyelv megtanulása), majd **beszélgetésre hangolás**. Időkerettel fut,
+   folyamatosan menti az eredményt, és csak a legjobb változatot tartja meg.
+5. **Folyamatos fejlődés:** a `build` újrafuttatásakor a modell onnan tanul tovább, ahol abbahagyta,
+   és közben az új tudást is megtanulja. Új modell a nulláról: `--fresh`.
+
+**Mire számíts:** a saját modell teljesen a tiéd, de egy otthoni gépen tanított modell sokkal kisebb,
+mint a nagy cégek modelljei. Kicsi méretben és néhány óra tanítás után csak nyelvtanilag hasonló
+szöveget ír. Egy középes GPU-n több napig tanított kozepes modell már összefüggő magyar mondatokat
+ír, de a gondolkodása messze elmarad a letöltött Qwen modellétől. Ezért a napi munkához az Ollama
+modell az alapbeállítás, a saját modell pedig egy mellette fejlődő kísérlet, amelyet bármikor
+bekapcsolhatsz a `tecf model use` paranccsal.
 
 ## Biztonság
 

@@ -42,6 +42,7 @@ class TecFApp:
                                                                                             pady=8)
         for text, cmd in [("📚 Tanulj témát", self._learn_topic), ("🔁 Tanuló üzem", self._learn_loop),
                           ("🌐 Alaptudás letöltése", self._bootstrap), ("📄 Dokumentum felvétele", self._ingest),
+                          ("🧬 Saját modell", self._own_model),
                           ("📊 Állapot", lambda: self._run_bg(self._show_stats))]:
             tk.Button(top, text=text, command=cmd, bg=BG, fg=FG, relief="flat", activebackground=ACCENT,
                       padx=10).pack(side="left", padx=3)
@@ -178,6 +179,41 @@ class TecFApp:
         if path:
             from tecf.learning import Learner
             self._run_bg(lambda: self._log(f"{Learner(self.brain).ingest_path(path)} dokumentum felvéve."))
+
+    def _own_model(self) -> None:
+        """Saját nyelvi modell építése / továbbtanítása a háttérben (a beszélgetés közben is mehet)."""
+        if getattr(self, "_model_stop", None) is not None:
+            if messagebox.askyesno("Saját modell", "A tanítás fut. Leállítsam? (Az eddigi eredmény megmarad.)"):
+                self._model_stop.set()
+            return
+        try:
+            from tecf.llm import pipeline
+        except ImportError:
+            messagebox.showerror("Saját modell", "Hiányzik a PyTorch. Telepítsd újra a TecF Ai-t, "
+                                                 "vagy: pip install -r requirements-train.txt")
+            return
+        hours = simpledialog.askfloat("Saját modell",
+                                      "Hány órát tanuljon a saját modell?\n(Az első alkalommal a szöveggyűjtés "
+                                      "is ide számít. Újra indítva tovább tanul.)", initialvalue=8, minvalue=0.05,
+                                      parent=self.root)
+        if not hours:
+            return
+        self._model_stop = threading.Event()
+
+        def work():
+            try:
+                pipeline.build(self.cfg, hours, log=self._log, stop=self._model_stop)
+                pipeline.use(self.cfg, True)
+                self.brain.cfg.local_provider = "tecf-sajat"
+                self.brain.provider(refresh=True)
+                self._log("🧬 A saját modell elkészült, és használatban van.")
+                self._refresh_status()
+            except Exception as e:
+                self._log(f"Saját modell hiba: {type(e).__name__}: {e}")
+            finally:
+                self._model_stop = None
+        # külön szálon, zárolás nélkül: saját adatbázis-kapcsolatot használ
+        threading.Thread(target=work, daemon=True).start()
 
     def _show_stats(self) -> None:
         stats = self.brain.kb.stats()

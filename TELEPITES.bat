@@ -6,5 +6,5 @@ if %errorlevel% neq 0 (
     exit /b
 )
 cd /d "%~dp0"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\install_windows.ps1" -NightlyLearning
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\install_windows.ps1" -NightlyLearning -OwnModel
 pause

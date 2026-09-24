@@ -5,7 +5,8 @@ param(
     [string]$Target = "D:\TecFAi",
     [switch]$NoOllama,
     [switch]$NoBootstrap,
-    [switch]$NightlyLearning
+    [switch]$NightlyLearning,
+    [switch]$OwnModel
 )
 $ErrorActionPreference = "Stop"
 $Src = Split-Path -Parent $PSScriptRoot
@@ -22,13 +23,26 @@ if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
 
 # 2) Programfájlok másolása
 New-Item -ItemType Directory -Force -Path "$Target\app" | Out-Null
-Copy-Item -Recurse -Force "$Src\tecf", "$Src\requirements-optional.txt", "$Src\README.md" "$Target\app\"
+Copy-Item -Recurse -Force "$Src\tecf", "$Src\requirements-optional.txt", "$Src\requirements-train.txt", "$Src\README.md" "$Target\app\"
 Copy-Item -Force "$Src\scripts\tecf.bat" "$Target\tecf.bat"
 
 # 3) Saját Python környezet + opcionális csomagok (PDF, Word, Excel, SSH/hálózat)
 python -m venv "$Target\venv"
 & "$Target\venv\Scripts\python.exe" -m pip install --upgrade pip
 & "$Target\venv\Scripts\python.exe" -m pip install -r "$Target\app\requirements-optional.txt"
+
+# 3b) Saját nyelvi modell tanításához: PyTorch (NVIDIA kártyánál GPU-s változat)
+if ($OwnModel) {
+    $nvidia = Get-CimInstance Win32_VideoController | Where-Object { $_.Name -match "NVIDIA" }
+    if ($nvidia) {
+        Write-Host "NVIDIA kártya: $($nvidia[0].Name) -> PyTorch GPU változat"
+        & "$Target\venv\Scripts\python.exe" -m pip install torch --index-url https://download.pytorch.org/whl/cu128
+    } else {
+        Write-Host "Nincs NVIDIA kártya -> PyTorch CPU változat (a tanítás lassabb lesz)"
+        & "$Target\venv\Scripts\python.exe" -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+    }
+    & "$Target\venv\Scripts\python.exe" -m pip install -r "$Target\app\requirements-train.txt"
+}
 
 # 4) Offline nyelvi modell (Ollama) – a gép memóriájához illő legjobb nyílt modell
 $ramGB = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
