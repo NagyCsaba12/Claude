@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.db
+*.db-wal
+*.db-shm
+api_keys.json

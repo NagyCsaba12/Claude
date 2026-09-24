@@ -1,0 +1,7 @@
+# Az alap működéshez NEM kell semmi (csak Python 3.10+ standard könyvtár).
+# Ezek bővítik a képességeket:
+pypdf>=4.0          # PDF olvasás
+python-docx>=1.1    # Word (.docx) készítés
+openpyxl>=3.1       # Excel olvasás
+netmiko>=4.3        # hálózati eszközök SSH programozása (Cisco, MikroTik, Juniper, ...)
+psutil>=5.9         # részletes rendszerinfó
