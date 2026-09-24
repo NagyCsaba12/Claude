@@ -27,14 +27,14 @@ from typing import Callable
 from tecf.config import Config
 from tecf.knowledge import KnowledgeBase
 from tecf.llm import model_dir
-from tecf.llm.hardware import Hardware, detect
+from tecf.llm.hardware import Hardware, detect, free_gpu_memory
 
 # (min. VRAM GB, Hugging Face azonosító, leírás) – Apache-2.0 licenc, magyarul is tudnak
 BASE_MODELS = [
     (0, "Qwen/Qwen3-0.6B", "0,6 milliárd paraméter – bármilyen gépen fut, CPU-n is tanítható"),
-    (6, "Qwen/Qwen3-1.7B", "1,7 milliárd paraméter – 6+ GB VRAM"),
-    (12, "Qwen/Qwen3-4B", "4 milliárd paraméter – 12+ GB VRAM"),
-    (22, "Qwen/Qwen3-8B", "8 milliárd paraméter – 22+ GB VRAM"),
+    (5.5, "Qwen/Qwen3-1.7B", "1,7 milliárd paraméter – 6+ GB VRAM"),
+    (11.5, "Qwen/Qwen3-4B", "4 milliárd paraméter – 12+ GB VRAM"),
+    (21.5, "Qwen/Qwen3-8B", "8 milliárd paraméter – 22+ GB VRAM"),
 ]
 SYSTEM = "Te TecF Ai vagy, egy segítőkész magyar nyelvű asszisztens: rendszergazda, programozó és hálózati szakértő."
 
@@ -119,6 +119,8 @@ def finetune(cfg: Config, minutes: float = 120, base: str | None = None, max_len
     if tok.pad_token_id is None:
         tok.pad_token = tok.eos_token
     model = AutoModelForCausalLM.from_pretrained(base, dtype=dtype)
+    if device == "cuda":
+        free_gpu_memory(log)
     model.to(device)
     if device == "cuda":
         model.gradient_checkpointing_enable()

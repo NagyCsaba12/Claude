@@ -17,7 +17,7 @@ from typing import Callable
 import numpy as np
 import torch
 
-from tecf.llm.hardware import PRESETS, detect, grad_accum, micro_batch
+from tecf.llm.hardware import PRESETS, detect, free_gpu_memory, grad_accum, micro_batch
 from tecf.llm.model import GPT, GPTConfig
 
 
@@ -62,6 +62,8 @@ def train(root: Path, stage: str = "pretrain", minutes: float = 60, preset: str 
     model = GPT(cfg)
     if ckpt:
         model.load_state_dict(ckpt["model"])
+    if device == "cuda":
+        free_gpu_memory(log)
     model.to(device)
 
     train_data = _load_tokens(root, stage, "train")

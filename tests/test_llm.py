@@ -49,3 +49,17 @@ class OwnModelTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HardwareChoiceTest(unittest.TestCase):
+    def test_laptop_rtx4050(self):
+        """RTX 4050 Laptop: 6 GB névleges, a meghajtó ~5,99 GB-ot jelent."""
+        from tecf.llm.base import choose_base
+        from tecf.llm.hardware import Hardware, grad_accum, hardware_limit, micro_batch
+        hw = Hardware("cuda", "NVIDIA GeForce RTX 4050 Laptop GPU", 5.99, 16, 14, True, True)
+        self.assertEqual(choose_base(hw), "Qwen/Qwen3-1.7B")
+        self.assertEqual(hardware_limit(hw), "kozepes")
+        self.assertEqual(micro_batch("kozepes", hw), 2)
+        self.assertEqual(grad_accum("kozepes", 2), 64)
+        cpu = Hardware("cpu", "", 0, 16, 14, False, True)
+        self.assertEqual(choose_base(cpu), "Qwen/Qwen3-0.6B")

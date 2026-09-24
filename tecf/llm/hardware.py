@@ -85,7 +85,8 @@ def hardware_limit(hw: Hardware) -> str:
     """A legnagyobb modell, amelyet a gép memóriája még kényelmesen tanítani tud."""
     if hw.device == "cuda":
         v = hw.vram_gb
-        return "xl" if v >= 40 else "nagy" if v >= 16 else "kozepes" if v >= 6 else "kicsi"
+        # a kártyák a névlegesnél kicsit kevesebbet jelentenek (6 GB -> 5,99), ezért a tűrés
+        return "xl" if v >= 38 else "nagy" if v >= 15 else "kozepes" if v >= 5.5 else "kicsi"
     if hw.device == "mps":
         return "kozepes" if hw.ram_gb >= 16 else "kicsi"
     return "kicsi" if hw.cpu_cores >= 8 and hw.ram_gb >= 16 else "mini"
@@ -113,12 +114,39 @@ def choose(hw: Hardware, n_tokens: int | None = None) -> tuple[str, str]:
 
 
 def micro_batch(preset: str, hw: Hardware) -> int:
+    """Egyszerre feldolgozott minták száma. Kis VRAM-nál kevesebb (a gradiens akkumuláció pótolja)."""
     base = {"teszt": 8, "mini": 32, "kicsi": 16, "kozepes": 8, "nagy": 4, "xl": 2}[preset]
-    if hw.device == "cuda" and hw.vram_gb >= 2 * {"kozepes": 8, "nagy": 16, "xl": 40}.get(preset, 99):
-        base *= 2
-    if hw.device == "cpu":
+    if hw.device == "cuda":
+        v = hw.vram_gb
+        if preset == "kozepes":
+            base = 2 if v < 10 else 4 if v < 16 else 8 if v < 32 else 16
+        elif preset == "nagy":
+            base = 2 if v < 20 else 4 if v < 32 else 8
+        elif preset == "xl":
+            base = 2 if v < 64 else 4
+    elif hw.device == "cpu":
         base = max(1, base // 2)
     return base
+
+
+def free_gpu_memory(log=print) -> None:
+    """Az Ollama által a videokártyán tartott modellek kiürítése, hogy a tanításnak legyen helye."""
+    import json
+    import urllib.request
+    try:
+        with urllib.request.urlopen("http://localhost:11434/api/ps", timeout=2) as r:
+            loaded = [m["name"] for m in json.loads(r.read()).get("models", [])]
+    except Exception:
+        return  # az Ollama nem fut – nincs mit kiüríteni
+    for name in loaded:
+        try:
+            req = urllib.request.Request("http://localhost:11434/api/generate", method="POST",
+                                         data=json.dumps({"model": name, "keep_alive": 0}).encode(),
+                                         headers={"Content-Type": "application/json"})
+            urllib.request.urlopen(req, timeout=30).read()
+            log(f"Videomemória felszabadítva: {name} (Ollama) kiürítve a tanítás idejére")
+        except Exception:
+            pass
 
 
 def grad_accum(preset: str, mb: int) -> int:
