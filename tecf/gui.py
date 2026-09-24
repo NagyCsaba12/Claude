@@ -192,22 +192,33 @@ class TecFApp:
             messagebox.showerror("Saját modell", "Hiányzik a PyTorch. Telepítsd újra a TecF Ai-t, "
                                                  "vagy: pip install -r requirements-train.txt")
             return
+        mode = messagebox.askyesnocancel(
+            "Saját modell",
+            "Milyen saját modellt építsek?\n\n"
+            "IGEN – alaptudással (AJÁNLOTT): egy kész, magyarul is tudó nyílt modellből (Qwen3) indul, "
+            "és azt hangolja a tudásbázisodra és az értékelt beszélgetéseidre. Már az első futás után használható.\n\n"
+            "NEM – a nulláról: teljesen saját, üres modell. Kísérleti, sok napnyi tanítás kell, mire értelmes lesz.")
+        if mode is None:
+            return
         hours = simpledialog.askfloat("Saját modell",
-                                      "Hány órát tanuljon a saját modell?\n(Az első alkalommal a szöveggyűjtés "
-                                      "is ide számít. Újra indítva tovább tanul.)", initialvalue=8, minvalue=0.05,
-                                      parent=self.root)
+                                      "Hány órát tanuljon?\n(Újra indítva mindig tovább tanul.)",
+                                      initialvalue=3 if mode else 8, minvalue=0.05, parent=self.root)
         if not hours:
             return
         self._model_stop = threading.Event()
 
         def work():
             try:
-                pipeline.build(self.cfg, hours, log=self._log, stop=self._model_stop)
+                if mode:
+                    from tecf.llm.base import finetune
+                    finetune(self.cfg, hours * 60, log=self._log, stop=self._model_stop)
+                else:
+                    pipeline.build(self.cfg, hours, log=self._log, stop=self._model_stop)
                 pipeline.use(self.cfg, True)
                 self.brain.cfg.local_provider = "tecf-sajat"
                 self.brain.provider(refresh=True)
                 self._log("🧬 A saját modell elkészült, és használatban van.")
-                self._refresh_status()
+                self._run_bg(self._refresh_status)
             except Exception as e:
                 self._log(f"Saját modell hiba: {type(e).__name__}: {e}")
             finally:

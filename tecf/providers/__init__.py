@@ -34,7 +34,7 @@ PROVIDERS: dict[str, ProviderSpec] = {p.name: p for p in [
     # ---- Helyi, offline futó motorok ----
     ProviderSpec("ollama", "Ollama (helyi)", "openai", "http://localhost:11434/v1", "qwen3:8b",
                  local=True, note="Offline. Telepítés: ollama.com, majd `ollama pull qwen3:8b`"),
-    ProviderSpec("tecf-sajat", "TecF saját modell (nulláról tanított)", "native", "", "sajat", local=True,
+    ProviderSpec("tecf-sajat", "TecF saját modell", "native", "", "sajat", local=True,
                  note="Saját, ezen a gépen tanított modell: tecf model build"),
     ProviderSpec("lmstudio", "LM Studio (helyi)", "openai", "http://localhost:1234/v1", "local-model", local=True),
     ProviderSpec("llamacpp", "llama.cpp server (helyi)", "openai", "http://localhost:8080/v1", "local-model",
@@ -128,7 +128,8 @@ class Provider:
                 import torch  # noqa: F401
             except ImportError:
                 return False
-            return (self._own_root() / "model.pt").exists()
+            root = self._own_root()
+            return (root / "alap" / "modell" / "config.json").exists() or (root / "model.pt").exists()
         if self.spec.local:
             try:
                 urllib.request.urlopen(self.base_url + "/models", timeout=2)
@@ -141,10 +142,14 @@ class Provider:
              max_tokens: int = 2048) -> str:
         style = self.spec.style
         if style == "native":
-            from tecf.llm.infer import OwnModel
+            root = self._own_root()
             try:
-                return OwnModel.get(self._own_root()).chat(messages, system, max(temperature, 0.5),
-                                                           min(max_tokens, 400))
+                if (root / "alap" / "modell" / "config.json").exists():  # alaptudással indított saját modell
+                    from tecf.llm.base import BaseModelRunner
+                    return BaseModelRunner.get(root / "alap" / "modell").chat(messages, system, temperature,
+                                                                               max_tokens)
+                from tecf.llm.infer import OwnModel  # nulláról tanított saját modell
+                return OwnModel.get(root).chat(messages, system, max(temperature, 0.5), min(max_tokens, 400))
             except Exception as e:
                 raise ProviderError(f"Saját modell hiba: {e}") from e
         if style == "anthropic":

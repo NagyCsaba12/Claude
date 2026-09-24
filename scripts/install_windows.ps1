@@ -42,6 +42,8 @@ if ($OwnModel) {
         & "$Target\venv\Scripts\python.exe" -m pip install torch --index-url https://download.pytorch.org/whl/cpu
     }
     & "$Target\venv\Scripts\python.exe" -m pip install -r "$Target\app\requirements-train.txt"
+    # a letöltött alapmodellek (Hugging Face) is a D: meghajtóra kerüljenek
+    [Environment]::SetEnvironmentVariable("HF_HOME", "$Target\hf_cache", "User")
 }
 
 # 4) Offline nyelvi modell (Ollama) – a gép memóriájához illő legjobb nyílt modell

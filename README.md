@@ -132,47 +132,56 @@ A `config.json` fájlban:
 5. **Finomhangolás (haladó):** `tecf export tanito.jsonl` exportálja a jó válaszokat, amelyekkel
    a helyi modell LoRA-val továbbtanítható (pl. Unsloth vagy LLaMA-Factory segítségével), majd Ollamába importálható.
 
-## Saját nyelvi modell (nulláról, a gép kapacitásához méretezve)
+## Saját nyelvi modell
 
-A TecF Ai egy **teljesen saját**, a te gépeden, a nulláról tanított nyelvi modellt is fel tud építeni.
-Az ablakban ehhez a **🧬 Saját modell** gomb kell, parancssorban pedig:
+Az ablakban a **🧬 Saját modell** gombbal indítható. Kétféle saját modell építhető:
+
+### 1. Alaptudással (ajánlott)
+
+Egy kész, ingyenes, magyarul is tudó modellből indul (Qwen3, Apache-2.0 licenc), és azt tanítja tovább
+a **te tudásbázisodra** (a letöltött alaptudásra, a dokumentumaidra és az emlékeire) és a **jónak értékelt
+beszélgetéseidre**. Az első futás után már okos és használható, és minden újabb futással tovább fejlődik.
+
+```
+tecf model base --hours 3    # saját modell építése / továbbtanítása
+tecf model test "Mi az a VLAN?"
+tecf model ollama            # opcionális: átadás az Ollamának (gyorsabb, kevesebb memória)
+```
+
+A gépedhez illő alapmodellt magától választja ki:
+
+| Videokártya (VRAM) | Alapmodell |
+|---|---|
+| nincs / kevés | Qwen3 0,6 milliárd paraméter (CPU-n is megy, de lassú) |
+| 6+ GB | Qwen3 1,7 milliárd paraméter |
+| 12+ GB | Qwen3 4 milliárd paraméter |
+| 22+ GB | Qwen3 8 milliárd paraméter |
+
+Kézi választás: `tecf model base --base Qwen/Qwen3-4B`. A saját modell a
+`D:\TecFAi\sajat_modell\alap\modell` mappába kerül, és teljesen offline működik.
+
+### 2. A nulláról (kísérleti)
+
+Teljesen saját, üres modell, amely a gép kapacitásához méretezve a nulláról tanul:
 
 ```
 tecf model info              # hardver felmérés, ajánlott modellméret
-tecf model build --hours 8   # mindent egyben: szöveggyűjtés, tokenizáló, tanítás, beszélgetésre hangolás
-tecf model test "A VLAN"     # kipróbálás
+tecf model build --hours 8   # szöveggyűjtés, tokenizáló, tanítás, beszélgetésre hangolás
 tecf model use               # a TecF Ai ezt használja (vissza: tecf model use --off)
 ```
 
-**Hogyan működik:**
-1. **Hardver felmérés:** a program megnézi a videokártyát (VRAM), a memóriát és a processzort, és
-   kiválasztja a legnagyobb modellt, amelyet a gép még tanítani tud:
+| Méret | Paraméter | Kell hozzá |
+|---|---|---|
+| mini | ~5 millió | bármilyen gép (CPU) |
+| kicsi | ~17 millió | erős CPU (8+ mag, 16 GB RAM) vagy kis GPU |
+| kozepes | ~110 millió (GPT-2 méret) | NVIDIA 6–16 GB VRAM |
+| nagy | ~336 millió | NVIDIA 16+ GB VRAM |
+| xl | ~730 millió | NVIDIA 40+ GB VRAM |
 
-   | Méret | Paraméter | Kell hozzá |
-   |---|---|---|
-   | mini | ~5 millió | bármilyen gép (CPU) |
-   | kicsi | ~17 millió | erős CPU (8+ mag, 16 GB RAM) vagy kis GPU |
-   | kozepes | ~110 millió (GPT-2 méret) | NVIDIA 6–16 GB VRAM |
-   | nagy | ~336 millió | NVIDIA 16+ GB VRAM |
-   | xl | ~730 millió | NVIDIA 40+ GB VRAM |
-
-   A méretet az adatmennyiség is korlátozza: kevés szövegen a nagy modell csak bemagolja az anyagot.
-2. **Szöveggyűjtés:** a saját tudásbázis, a jónak értékelt beszélgetések, valamint nyílt, jó minőségű
-   gyűjtemények: magyar és angol Wikipédia, FineWeb-2 magyar, FineWeb-Edu, Python kód, és SmolTalk
-   beszélgetések a beszélgetésre hangoláshoz. Alapból kb. 2,3 GB, ez állítható:
-   `tecf model corpus -s wiki-hu=1000 fineweb2-hu=2000`.
-3. **Saját tokenizáló** (BPE), amely a magyar ékezetes szöveget is hatékonyan kezeli.
-4. **Előtanítás** (a nyelv megtanulása), majd **beszélgetésre hangolás**. Időkerettel fut,
-   folyamatosan menti az eredményt, és csak a legjobb változatot tartja meg.
-5. **Folyamatos fejlődés:** a `build` újrafuttatásakor a modell onnan tanul tovább, ahol abbahagyta,
-   és közben az új tudást is megtanulja. Új modell a nulláról: `--fresh`.
-
-**Mire számíts:** a saját modell teljesen a tiéd, de egy otthoni gépen tanított modell sokkal kisebb,
-mint a nagy cégek modelljei. Kicsi méretben és néhány óra tanítás után csak nyelvtanilag hasonló
-szöveget ír. Egy közepes GPU-n több napig tanított kozepes modell már összefüggő magyar mondatokat
-ír, de a gondolkodása messze elmarad a letöltött Qwen modellétől. Ezért a napi munkához az Ollama
-modell az alapbeállítás, a saját modell pedig egy mellette fejlődő kísérlet, amelyet bármikor
-bekapcsolhatsz a `tecf model use` paranccsal.
+Szöveget gyűjt (magyar és angol Wikipédia, FineWeb-2 magyar, FineWeb-Edu, Python kód, SmolTalk
+beszélgetések, alapból kb. 2,3 GB; állítható: `tecf model corpus -s wiki-hu=1000`), saját tokenizálót
+tanít, majd időkerettel tanít, és csak a legjobb változatot tartja meg. Egy otthoni gépen a nulláról
+tanított modell sokkal gyengébb marad egy kész alapmodellnél, ezért ez inkább kísérlet.
 
 ## Biztonság
 

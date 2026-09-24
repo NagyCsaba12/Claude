@@ -18,8 +18,11 @@
   tecf export <fájl.jsonl>       – finomhangoló adatok exportja
   tecf serve [--port 8765]       – helyi, OpenAI-kompatibilis API szerver
 
-  SAJÁT NYELVI MODELL (nulláról, a gép kapacitásához méretezve):
+  SAJÁT NYELVI MODELL:
   tecf model info                 – hardver, ajánlott modellméret, állapot
+  tecf model base --hours 3       – AJÁNLOTT: kész alapmodellből (Qwen3) saját modell a te tudásodra hangolva
+  tecf model ollama               – a saját modell átadása az Ollamának (gyorsabb, eszközhasználat)
+  NULLÁRÓL TANÍTOTT MODELL (kísérleti, a gép kapacitásához méretezve):
   tecf model build --hours 8      – mindent egyben: szöveggyűjtés, tokenizáló, tanítás
   tecf model corpus | prepare | train --minutes 60 [--stage sft]   – lépésenként
   tecf model test "szöveg"        – kipróbálás
@@ -223,14 +226,32 @@ def cmd_model(cfg: Config, a) -> None:
         if a.fresh:
             pipeline.reset(cfg)
             pipeline.prepare(cfg)
-        train(model_dir(cfg.root), a.stage, a.minutes, a.size)
+        train(model_dir(cfg.root), a.stage, a.minutes or 60, a.size)
     elif act == "build":
         pipeline.build(cfg, a.hours, _mix(a.sources), download=not a.no_download, fresh=a.fresh)
         print("\nKipróbálás: tecf model test \"Mi az a VLAN?\"   Beállítás: tecf model use")
+    elif act == "base":
+        from tecf.llm.base import finetune
+        finetune(cfg, a.minutes or a.hours * 60, a.base)
+        pipeline.use(cfg, True)
+        print("\nA TecF Ai mostantól a saját modellt használja. Kipróbálás: tecf model test \"Mi az a VLAN?\"")
+    elif act == "ollama":
+        from tecf.llm.base import export_to_ollama
+        if export_to_ollama(cfg):
+            cfg.local_provider, cfg.local_model = "ollama", "tecf-agy"
+            cfg.save()
+            print("Kész: a TecF Ai az Ollamán keresztül a saját modelljét (tecf-agy) használja.")
+        else:
+            print("Az Ollama import nem sikerült; a saját modell továbbra is közvetlenül használható (tecf model use).")
     elif act == "test":
+        prompt = " ".join(a.text) or "Mi az a VLAN?"
+        base_dir = model_dir(cfg.root) / "alap" / "modell"
+        if (base_dir / "config.json").exists() and not a.scratch:
+            from tecf.llm.base import BaseModelRunner
+            print(BaseModelRunner.get(base_dir).chat([{"role": "user", "content": prompt}]))
+            return
         from tecf.llm.infer import OwnModel
         m = OwnModel.get(model_dir(cfg.root))
-        prompt = " ".join(a.text) or "A számítógép-hálózat"
         print(f"[{m.info}]\n")
         print(m.chat([{"role": "user", "content": prompt}]) if a.chat else prompt + " " + m.complete(prompt))
     elif act == "use":
@@ -294,11 +315,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("file")
     p.set_defaults(fn=cmd_export)
     p = sp.add_parser("model", help="saját nyelvi modell")
-    p.add_argument("action", choices=["info", "corpus", "prepare", "train", "build", "test", "use"])
+    p.add_argument("action", choices=["info", "base", "ollama", "corpus", "prepare", "train", "build", "test", "use"])
     p.add_argument("text", nargs="*", help="test: kiinduló szöveg")
     p.add_argument("-s", "--sources", nargs="*", help="forrás=MB, pl. wiki-hu=500 code=100")
-    p.add_argument("--hours", type=float, default=4, help="build: teljes tanítási idő")
-    p.add_argument("--minutes", type=float, default=60, help="train: tanítási idő")
+    p.add_argument("--hours", type=float, default=4, help="base/build: teljes tanítási idő")
+    p.add_argument("--base", help="base: alapmodell (pl. Qwen/Qwen3-4B), alap: a géphez illő")
+    p.add_argument("--scratch", action="store_true", help="test: a nulláról tanított modellt próbálja")
+    p.add_argument("--minutes", type=float, help="train (alap 60) / base: tanítási idő percben")
     p.add_argument("--stage", choices=["pretrain", "sft"], default="pretrain")
     p.add_argument("--size", default="auto", help="auto | mini | kicsi | kozepes | nagy | xl")
     p.add_argument("--fresh", action="store_true", help="új modell a nulláról")
