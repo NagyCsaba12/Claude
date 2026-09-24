@@ -169,7 +169,7 @@ tecf model use               # a TecF Ai ezt használja (vissza: tecf model use 
 
 **Mire számíts:** a saját modell teljesen a tiéd, de egy otthoni gépen tanított modell sokkal kisebb,
 mint a nagy cégek modelljei. Kicsi méretben és néhány óra tanítás után csak nyelvtanilag hasonló
-szöveget ír. Egy középes GPU-n több napig tanított kozepes modell már összefüggő magyar mondatokat
+szöveget ír. Egy közepes GPU-n több napig tanított kozepes modell már összefüggő magyar mondatokat
 ír, de a gondolkodása messze elmarad a letöltött Qwen modellétől. Ezért a napi munkához az Ollama
 modell az alapbeállítás, a saját modell pedig egy mellette fejlődő kísérlet, amelyet bármikor
 bekapcsolhatsz a `tecf model use` paranccsal.
