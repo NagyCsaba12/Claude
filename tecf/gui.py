@@ -30,6 +30,9 @@ class TecFApp:
         self.last_id: int | None = None
         self.brain = Brain(cfg, KnowledgeBase(cfg.db_path, threaded=True),
                            confirm=self._confirm_from_worker, log=self._log)
+        # az ablak eseménykezelőiben keletkező hibák se vesszenek el (konzol nélkül nem látszanának)
+        self.root.report_callback_exception = lambda *exc: self._log(
+            f"Hiba: {exc[0].__name__}: {exc[1]}")
         self._build()
         self.root.after(80, self._pump)
         self._run_bg(self._refresh_status)

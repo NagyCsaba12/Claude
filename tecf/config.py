@@ -89,7 +89,7 @@ class Config:
         path = root / "config" / "config.json"
         cfg = cls(home=str(root))
         if path.exists():
-            data = json.loads(path.read_text(encoding="utf-8"))
+            data = json.loads(path.read_text(encoding="utf-8-sig"))
             for k, v in data.items():
                 if hasattr(cfg, k) and k != "home":
                     setattr(cfg, k, v)
@@ -99,7 +99,7 @@ class Config:
     # ---- API kulcsok ----
     def load_keys(self) -> dict[str, str]:
         if self.keys_path.exists():
-            return json.loads(self.keys_path.read_text(encoding="utf-8"))
+            return json.loads(self.keys_path.read_text(encoding="utf-8-sig"))
         return {}
 
     def set_key(self, provider: str, key: str) -> None:

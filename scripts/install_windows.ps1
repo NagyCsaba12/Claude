@@ -14,12 +14,42 @@ $Src = Split-Path -Parent $PSScriptRoot
 Write-Host "== TecF Ai telepítés: $Target ==" -ForegroundColor Cyan
 if (-not (Test-Path "D:\")) { throw "Nincs D: meghajtó. Adj meg másik célt: -Target E:\TecFAi" }
 
-# 1) Python
-if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
-    Write-Host "Python telepítése (winget)..."
-    winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements
-    $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
+# Külső parancs futtatása; hiba esetén megáll, és érthető üzenetet ír
+function Invoke-Step([string]$What, [scriptblock]$Cmd) {
+    & $Cmd
+    if ($LASTEXITCODE -ne 0) { throw "Hiba ennél a lépésnél: $What (kilépési kód: $LASTEXITCODE)" }
 }
+
+# Valódi Python keresése. A Windows 11 'python' parancsa gyakran csak a Microsoft Store
+# parancsikonja (WindowsApps), ami nem működő Python – ezt kihagyjuk.
+function Get-RealPython {
+    $ErrorActionPreference = "Continue"  # egy hibás jelölt ne állítsa le a telepítőt
+    $cands = @()
+    $cands += Get-ChildItem "$env:LOCALAPPDATA\Programs\Python\Python31[0-3]\python.exe",
+                            "$env:ProgramFiles\Python31[0-3]\python.exe" -ErrorAction SilentlyContinue |
+              Sort-Object { $_.FullName -notmatch "Python312" }, FullName | ForEach-Object FullName
+    $cmd = Get-Command python -ErrorAction SilentlyContinue
+    if ($cmd -and $cmd.Source -notmatch "WindowsApps") { $cands += $cmd.Source }
+    foreach ($p in $cands) {
+        $v = & $p -c "import sys, tkinter, venv; print('%d.%d' % sys.version_info[:2])" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $v -and [version]$v -ge [version]"3.10" -and [version]$v -lt [version]"3.14") {
+            return $p
+        }
+    }
+    return $null
+}
+
+# 1) Python
+$py = Get-RealPython
+if (-not $py) {
+    Write-Host "Python 3.12 telepítése (winget)..."
+    winget install -e --id Python.Python.3.12 --scope user --accept-package-agreements --accept-source-agreements
+    $py = Get-RealPython
+}
+if (-not $py) {
+    throw "Nem sikerült Pythont telepíteni. Telepítsd kézzel: https://www.python.org/downloads/ (3.12), majd futtasd újra."
+}
+Write-Host "Python: $py"
 
 # 2) Programfájlok másolása
 New-Item -ItemType Directory -Force -Path "$Target\app" | Out-Null
@@ -27,21 +57,26 @@ Copy-Item -Recurse -Force "$Src\tecf", "$Src\requirements-optional.txt", "$Src\r
 Copy-Item -Force "$Src\scripts\tecf.bat" "$Target\tecf.bat"
 
 # 3) Saját Python környezet + opcionális csomagok (PDF, Word, Excel, SSH/hálózat)
-python -m venv "$Target\venv"
-& "$Target\venv\Scripts\python.exe" -m pip install --upgrade pip
-& "$Target\venv\Scripts\python.exe" -m pip install -r "$Target\app\requirements-optional.txt"
+if (-not (Test-Path "$Target\venv\Scripts\pythonw.exe")) {
+    # egy korábbi, félbemaradt telepítés maradványa
+    Remove-Item -Recurse -Force "$Target\venv" -ErrorAction SilentlyContinue
+    Invoke-Step "Python környezet létrehozása" { & $py -m venv "$Target\venv" }
+}
+$vpy = "$Target\venv\Scripts\python.exe"
+Invoke-Step "pip frissítése" { & $vpy -m pip install --upgrade pip }
+Invoke-Step "kiegészítő csomagok" { & $vpy -m pip install -r "$Target\app\requirements-optional.txt" }
 
 # 3b) Saját nyelvi modell tanításához: PyTorch (NVIDIA kártyánál GPU-s változat)
 if ($OwnModel) {
     $nvidia = Get-CimInstance Win32_VideoController | Where-Object { $_.Name -match "NVIDIA" }
     if ($nvidia) {
         Write-Host "NVIDIA kártya: $($nvidia[0].Name) -> PyTorch GPU változat"
-        & "$Target\venv\Scripts\python.exe" -m pip install torch --index-url https://download.pytorch.org/whl/cu128
+        Invoke-Step "PyTorch (GPU)" { & $vpy -m pip install torch --index-url https://download.pytorch.org/whl/cu128 }
     } else {
         Write-Host "Nincs NVIDIA kártya -> PyTorch CPU változat (a tanítás lassabb lesz)"
-        & "$Target\venv\Scripts\python.exe" -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+        Invoke-Step "PyTorch (CPU)" { & $vpy -m pip install torch --index-url https://download.pytorch.org/whl/cpu }
     }
-    & "$Target\venv\Scripts\python.exe" -m pip install -r "$Target\app\requirements-train.txt"
+    Invoke-Step "modelltanító csomagok" { & $vpy -m pip install -r "$Target\app\requirements-train.txt" }
     # a letöltött alapmodellek (Hugging Face) is a D: meghajtóra kerüljenek
     [Environment]::SetEnvironmentVariable("HF_HOME", "$Target\hf_cache", "User")
 }
@@ -68,11 +103,12 @@ if (-not $NoOllama) {
 # 5) Inicializálás + beállítások
 [Environment]::SetEnvironmentVariable("TECF_HOME", $Target, "User")
 $env:TECF_HOME = $Target
-& "$Target\tecf.bat" init
+Invoke-Step "TecF Ai inicializálása" { & "$Target\tecf.bat" init }
 $cfgPath = "$Target\config\config.json"
 $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json
 $cfg.local_model = $model
-$cfg | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $cfgPath
+# BOM nélküli UTF-8 (a Windows PowerShell 5.1 "UTF8" kódolása BOM-ot írna a fájl elejére)
+[IO.File]::WriteAllText($cfgPath, ($cfg | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding $false))
 
 # 6) Alaptudás letöltése a netről (legjobb hiteles források)
 if (-not $NoBootstrap) { & "$Target\tecf.bat" bootstrap }
@@ -83,6 +119,11 @@ if ($NightlyLearning) {
     $trigger = New-ScheduledTaskTrigger -Daily -At 2am
     Register-ScheduledTask -TaskName "TecF Ai tanulás" -Action $action -Trigger $trigger -Force | Out-Null
     Write-Host "Éjszakai tanulás ütemezve (02:00)."
+}
+
+# 7b) Ellenőrzés: elindul-e az ablakos program (tkinter + a program betöltése)
+Invoke-Step "ablakos program ellenőrzése" {
+    & $vpy -c "import sys; sys.path.insert(0, r'$Target\app'); import tkinter, tecf.gui; print('Ablakos program: OK')"
 }
 
 # 8) Asztali és Start menü parancsikon (ablakos program, konzol nélkül)
