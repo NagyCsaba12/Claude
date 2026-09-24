@@ -6,7 +6,7 @@ formátumot használ. Csak a Python standard könyvtárát használja (urllib),
 így telepítés nélkül is működik.
 
 API kulcs forrása (ebben a sorrendben):
-  1. D:\\NexusAI\\config\\api_keys.json  ( `nexus keys set <név> <kulcs>` )
+  1. D:\\TecFAi\\config\\api_keys.json  ( `tecf keys set <név> <kulcs>` )
   2. környezeti változó (pl. OPENAI_API_KEY)
 """
 from __future__ import annotations
@@ -164,7 +164,7 @@ def get_provider(name: str, keys: dict[str, str] | None = None, model: str | Non
         name, model = name.split(":", 1)
     spec = PROVIDERS.get(name)
     if spec is None:
-        raise ProviderError(f"Ismeretlen szolgáltató: {name}. Lista: nexus providers")
+        raise ProviderError(f"Ismeretlen szolgáltató: {name}. Lista: tecf providers")
     keys = keys or {}
     key = keys.get(name) or (os.environ.get(spec.env_key, "") if spec.env_key else "")
     base = keys.get(f"{name}_url") or None

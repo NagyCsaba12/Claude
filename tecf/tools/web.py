@@ -7,10 +7,10 @@ import urllib.request
 import urllib.robotparser
 from functools import lru_cache
 
-from nexus.tools import tool
-from nexus.tools.documents import html_to_text
+from tecf.tools import tool
+from tecf.tools.documents import html_to_text
 
-UA = "NexusAI/0.1 (+personal research assistant)"
+UA = "TecFAi/0.1 (+personal research assistant)"
 
 
 def _get(url: str, timeout: float = 20) -> str:

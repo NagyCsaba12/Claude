@@ -4,8 +4,8 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from nexus.bootstrap import Bootstrapper, Crawl
-from nexus.knowledge import KnowledgeBase
+from tecf.bootstrap import Bootstrapper, Crawl
+from tecf.knowledge import KnowledgeBase
 
 BODY = "<p>" + "OSPF area 0 backbone routing tudás. " * 30 + "</p>"
 PAGES = {

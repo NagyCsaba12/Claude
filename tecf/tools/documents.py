@@ -10,7 +10,7 @@ import re
 import zipfile
 from pathlib import Path
 
-from nexus.tools import tool
+from tecf.tools import tool
 
 TEXT_EXT = {".txt", ".md", ".csv", ".json", ".xml", ".yaml", ".yml", ".ini", ".cfg", ".log", ".py", ".js",
             ".ts", ".java", ".c", ".cpp", ".h", ".cs", ".go", ".rs", ".php", ".rb", ".sh", ".ps1", ".bat",

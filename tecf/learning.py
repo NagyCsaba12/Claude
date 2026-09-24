@@ -14,10 +14,10 @@ import re
 import time
 from pathlib import Path
 
-from nexus.brain import Brain
-from nexus.providers import ProviderError, get_provider
-from nexus.tools import web
-from nexus.tools.documents import TEXT_EXT, extract_text
+from tecf.brain import Brain
+from tecf.providers import ProviderError, get_provider
+from tecf.tools import web
+from tecf.tools.documents import TEXT_EXT, extract_text
 
 CURRICULUM = {
     "rendszergazda": [
@@ -195,5 +195,5 @@ class Learner:
             answer, conv_id = self.brain.ask(r["question"])
             self.kb.db.execute("UPDATE conversations SET rating=0 WHERE id=?", (r["id"],))
             self.kb.db.commit()
-            self.log(f"↻ Újragondolva (#{r['id']} -> #{conv_id}). Értékeld: nexus rate {conv_id} good|bad")
+            self.log(f"↻ Újragondolva (#{r['id']} -> #{conv_id}). Értékeld: tecf rate {conv_id} good|bad")
         return len(rows)

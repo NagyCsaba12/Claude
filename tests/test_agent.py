@@ -5,8 +5,8 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from nexus.brain import Brain
-from nexus.config import Config
+from tecf.brain import Brain
+from tecf.config import Config
 
 REQUESTS = []
 

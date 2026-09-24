@@ -6,9 +6,9 @@ Forrástípusok (magas megbízhatósági pontszámmal, hogy a keresésnél előn
   - Wikipedia szócikkek (fogalmi alapok, magyar és angol)
   - gyártói dokumentáció célzott kereséssel (Cisco, MikroTik, Juniper, HPE Aruba, Fortinet, Microsoft)
 
-Használat:  nexus bootstrap                      (minden terület)
-            nexus bootstrap -a halozat programozas
-            nexus bootstrap --scale 0.3           (gyors, kisebb alap)
+Használat:  tecf bootstrap                      (minden terület)
+            tecf bootstrap -a halozat programozas
+            tecf bootstrap --scale 0.3           (gyors, kisebb alap)
 """
 from __future__ import annotations
 
@@ -19,9 +19,9 @@ import urllib.parse
 from collections import deque
 from dataclasses import dataclass
 
-from nexus.knowledge import KnowledgeBase
-from nexus.tools import web
-from nexus.tools.documents import html_to_text
+from tecf.knowledge import KnowledgeBase
+from tecf.tools import web
+from tecf.tools.documents import html_to_text
 
 
 @dataclass(frozen=True)

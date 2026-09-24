@@ -1,5 +1,5 @@
 [project]
-name = "nexus-ai"
+name = "tecf-ai"
 version = "0.1.0"
 description = "Saját, offline is működő, önállóan tanuló AI asszisztens"
 requires-python = ">=3.10"
@@ -9,11 +9,11 @@ dependencies = []
 full = ["pypdf>=4.0", "python-docx>=1.1", "openpyxl>=3.1", "netmiko>=4.3", "psutil>=5.9"]
 
 [project.scripts]
-nexus = "nexus.cli:main"
+tecf = "tecf.cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["nexus*"]
+include = ["tecf*"]

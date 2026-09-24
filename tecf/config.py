@@ -1,7 +1,7 @@
 """Konfiguráció és könyvtárszerkezet.
 
-Alapértelmezett hely Windows alatt: D:\\NexusAI (a NEXUS_HOME környezeti
-változóval felülírható). Más rendszeren: ~/NexusAI.
+Alapértelmezett hely Windows alatt: D:\\TecFAi (a TECF_HOME környezeti
+változóval felülírható). Más rendszeren: ~/TecFAi.
 """
 from __future__ import annotations
 
@@ -13,12 +13,12 @@ from pathlib import Path
 
 
 def default_home() -> Path:
-    env = os.environ.get("NEXUS_HOME")
+    env = os.environ.get("TECF_HOME")
     if env:
         return Path(env)
     if sys.platform.startswith("win"):
-        return Path("D:/NexusAI")
-    return Path.home() / "NexusAI"
+        return Path("D:/TecFAi")
+    return Path.home() / "TecFAi"
 
 
 @dataclass

@@ -11,7 +11,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 
-from nexus.tools import tool
+from tecf.tools import tool
 
 IS_WIN = sys.platform.startswith("win")
 

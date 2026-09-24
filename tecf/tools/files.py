@@ -5,7 +5,7 @@ import fnmatch
 import os
 from pathlib import Path
 
-from nexus.tools import tool
+from tecf.tools import tool
 
 
 @tool("Szöveges fájl olvasása.")

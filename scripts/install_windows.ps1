@@ -1,8 +1,8 @@
-# NEXUS AI telepítő – Windows, D: meghajtó
+﻿# TecF Ai telepítő – Windows, D: meghajtó
 # Futtatás (rendszergazdai PowerShell):
 #   Set-ExecutionPolicy -Scope Process Bypass; .\scripts\install_windows.ps1
 param(
-    [string]$Target = "D:\NexusAI",
+    [string]$Target = "D:\TecFAi",
     [switch]$NoOllama,
     [switch]$NoBootstrap,
     [switch]$NightlyLearning
@@ -10,8 +10,8 @@ param(
 $ErrorActionPreference = "Stop"
 $Src = Split-Path -Parent $PSScriptRoot
 
-Write-Host "== NEXUS AI telepítés: $Target ==" -ForegroundColor Cyan
-if (-not (Test-Path "D:\")) { throw "Nincs D: meghajtó. Adj meg másik célt: -Target E:\NexusAI" }
+Write-Host "== TecF Ai telepítés: $Target ==" -ForegroundColor Cyan
+if (-not (Test-Path "D:\")) { throw "Nincs D: meghajtó. Adj meg másik célt: -Target E:\TecFAi" }
 
 # 1) Python
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
@@ -22,8 +22,8 @@ if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
 
 # 2) Programfájlok másolása
 New-Item -ItemType Directory -Force -Path "$Target\app" | Out-Null
-Copy-Item -Recurse -Force "$Src\nexus", "$Src\requirements-optional.txt", "$Src\README.md" "$Target\app\"
-Copy-Item -Force "$Src\scripts\nexus.bat" "$Target\nexus.bat"
+Copy-Item -Recurse -Force "$Src\tecf", "$Src\requirements-optional.txt", "$Src\README.md" "$Target\app\"
+Copy-Item -Force "$Src\scripts\tecf.bat" "$Target\tecf.bat"
 
 # 3) Saját Python környezet + opcionális csomagok (PDF, Word, Excel, SSH/hálózat)
 python -m venv "$Target\venv"
@@ -50,29 +50,34 @@ if (-not $NoOllama) {
 }
 
 # 5) Inicializálás + beállítások
-[Environment]::SetEnvironmentVariable("NEXUS_HOME", $Target, "User")
-$env:NEXUS_HOME = $Target
-& "$Target\nexus.bat" init
+[Environment]::SetEnvironmentVariable("TECF_HOME", $Target, "User")
+$env:TECF_HOME = $Target
+& "$Target\tecf.bat" init
 $cfgPath = "$Target\config\config.json"
 $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json
 $cfg.local_model = $model
 $cfg | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $cfgPath
 
 # 6) Alaptudás letöltése a netről (legjobb hiteles források)
-if (-not $NoBootstrap) { & "$Target\nexus.bat" bootstrap }
+if (-not $NoBootstrap) { & "$Target\tecf.bat" bootstrap }
 
 # 7) Opcionális: éjszakai tanuló üzem (minden nap 02:00, 90 percig)
 if ($NightlyLearning) {
-    $action = New-ScheduledTaskAction -Execute "$Target\nexus.bat" -Argument "learn --loop --minutes 90"
+    $action = New-ScheduledTaskAction -Execute "$Target\tecf.bat" -Argument "learn --loop --minutes 90"
     $trigger = New-ScheduledTaskTrigger -Daily -At 2am
-    Register-ScheduledTask -TaskName "NEXUS AI tanulás" -Action $action -Trigger $trigger -Force | Out-Null
+    Register-ScheduledTask -TaskName "TecF Ai tanulás" -Action $action -Trigger $trigger -Force | Out-Null
     Write-Host "Éjszakai tanulás ütemezve (02:00)."
 }
 
-# 8) Asztali parancsikon
+# 8) Asztali és Start menü parancsikon (ablakos program, konzol nélkül)
 $ws = New-Object -ComObject WScript.Shell
-$lnk = $ws.CreateShortcut("$([Environment]::GetFolderPath('Desktop'))\NEXUS AI.lnk")
-$lnk.TargetPath = "$Target\nexus.bat"; $lnk.Arguments = "chat"; $lnk.WorkingDirectory = $Target
-$lnk.Save()
+foreach ($dir in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'))) {
+    $lnk = $ws.CreateShortcut("$dir\TecF Ai.lnk")
+    $lnk.TargetPath = "$Target\venv\Scripts\pythonw.exe"
+    $lnk.Arguments = "-m tecf gui"
+    $lnk.WorkingDirectory = "$Target\app"
+    $lnk.Description = "TecF Ai - saját tanuló mesterséges intelligencia"
+    $lnk.Save()
+}
 
-Write-Host "`nKész! Indítás: asztali 'NEXUS AI' ikon, vagy: $Target\nexus.bat chat" -ForegroundColor Green
+Write-Host "`nKész! Indítás: asztali 'TecF Ai' ikon, vagy parancssorból: $Target\tecf.bat chat" -ForegroundColor Green

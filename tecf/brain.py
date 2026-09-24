@@ -1,4 +1,4 @@
-"""A NEXUS "agya": modellválasztás, tudás-előhívás, eszközhasználat, önfejlesztés.
+"""A TecF Ai "agya": modellválasztás, tudás-előhívás, eszközhasználat, önfejlesztés.
 
 Válaszadás menete:
   1. Tudásbázis + emlékek keresése a kérdéshez (offline RAG)
@@ -11,12 +11,12 @@ from __future__ import annotations
 import json
 from typing import Callable
 
-from nexus.config import Config
-from nexus.knowledge import KnowledgeBase
-from nexus.providers import Provider, ProviderError, get_provider
-from nexus.tools import REGISTRY, Tool, describe_tools, parse_tool_calls, run_tool
+from tecf.config import Config
+from tecf.knowledge import KnowledgeBase
+from tecf.providers import Provider, ProviderError, get_provider
+from tecf.tools import REGISTRY, Tool, describe_tools, parse_tool_calls, run_tool
 
-IDENTITY = """Te NEXUS vagy, egy saját gépen futó, folyamatosan tanuló mesterséges intelligencia.
+IDENTITY = """Te TecF Ai vagy, egy saját gépen futó, folyamatosan tanuló mesterséges intelligencia.
 Szakterületeid:
 - profi rendszergazda (Windows Server, Active Directory, Linux, virtualizáció, mentés, biztonság)
 - profi programozó minden nyelven (Python, C/C++, C#, Java, JavaScript/TypeScript, Go, Rust, PHP, SQL,
@@ -157,5 +157,5 @@ class Brain:
         if not context:
             return ("Nincs elérhető nyelvi modell és a tudásbázisban sincs erről információ. "
                     "Indítsd el az Ollamát (offline) vagy adj meg API kulcsot, illetve futtasd a tanuló üzemet: "
-                    f'nexus learn "{question[:60]}"')
+                    f'tecf learn "{question[:60]}"')
         return "Offline tudásbázis mód (nincs nyelvi modell). A legrelevánsabb ismereteim:\n\n" + context

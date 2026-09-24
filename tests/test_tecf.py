@@ -3,15 +3,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from nexus.brain import Brain
-from nexus.config import Config
-from nexus.knowledge import KnowledgeBase, chunk_text
-from nexus.providers import PROVIDERS, get_provider
-from nexus.tools import load_all, parse_tool_calls, run_tool
-from nexus.tools.documents import create_document, extract_text
+from tecf.brain import Brain
+from tecf.config import Config
+from tecf.knowledge import KnowledgeBase, chunk_text
+from tecf.providers import PROVIDERS, get_provider
+from tecf.tools import load_all, parse_tool_calls, run_tool
+from tecf.tools.documents import create_document, extract_text
 
 
-class NexusTest(unittest.TestCase):
+class TecFTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.cfg = Config.load(self.tmp.name)

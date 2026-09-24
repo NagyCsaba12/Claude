@@ -1,18 +1,18 @@
-# NEXUS – architektúra
+# TecF Ai – architektúra
 
 ## Modulok
 
 | Fájl | Feladat |
 |---|---|
-| `nexus/config.py` | Konfiguráció, útvonalak (`D:\NexusAI`, felülírható: `NEXUS_HOME`), API kulcsok |
-| `nexus/knowledge.py` | Tudásbázis: SQLite + FTS5 (BM25), források, szövegrészek, emlékek, beszélgetések, tanulási sor |
-| `nexus/brain.py` | Agy: modellválasztás, kontextus-összeállítás (RAG), eszközhasználati ciklus, naplózás |
-| `nexus/learning.py` | Tanuló üzem, tanulás más AI-któl, fájlfeldolgozás, tény kivonás, önreflexió, tanterv |
-| `nexus/bootstrap.py` | Alaptudás: hivatalos dokumentációk bejárása, RFC-k, Wikipedia, gyártói dokumentáció |
-| `nexus/providers/` | 26 AI szolgáltató név szerint, egységes kliens (OpenAI, Anthropic, Gemini, Cohere formátum) |
-| `nexus/tools/` | Eszközök: `system`, `files`, `documents`, `web`, `network` |
-| `nexus/server.py` | Helyi, OpenAI-kompatibilis HTTP API |
-| `nexus/cli.py` | Parancssori felület |
+| `tecf/config.py` | Konfiguráció, útvonalak (`D:\TecFAi`, felülírható: `TECF_HOME`), API kulcsok |
+| `tecf/knowledge.py` | Tudásbázis: SQLite + FTS5 (BM25), források, szövegrészek, emlékek, beszélgetések, tanulási sor |
+| `tecf/brain.py` | Agy: modellválasztás, kontextus-összeállítás (RAG), eszközhasználati ciklus, naplózás |
+| `tecf/learning.py` | Tanuló üzem, tanulás más AI-któl, fájlfeldolgozás, tény kivonás, önreflexió, tanterv |
+| `tecf/bootstrap.py` | Alaptudás: hivatalos dokumentációk bejárása, RFC-k, Wikipedia, gyártói dokumentáció |
+| `tecf/providers/` | 26 AI szolgáltató név szerint, egységes kliens (OpenAI, Anthropic, Gemini, Cohere formátum) |
+| `tecf/tools/` | Eszközök: `system`, `files`, `documents`, `web`, `network` |
+| `tecf/server.py` | Helyi, OpenAI-kompatibilis HTTP API |
+| `tecf/cli.py` | Parancssori felület |
 
 ## Modellválasztás
 
@@ -32,7 +32,7 @@ Modellfüggetlen, így kis helyi modellekkel is működik. A modell a válaszáb
 ```
 ````
 
-A NEXUS lefuttatja az eszközt (a veszélyes eszközöknél előtte jóváhagyást kér), és az eredményt
+A TecF Ai lefuttatja az eszközt (a veszélyes eszközöknél előtte jóváhagyást kér), és az eredményt
 `ESZKÖZ EREDMÉNYEK:` üzenetként visszaküldi. Legfeljebb 8 lépés fér bele egy kérdésbe.
 
 ## Tudásbázis rangsorolás
@@ -56,8 +56,8 @@ szóalakokat is megtalálja. Az emlékek megbízhatósága minden megerősítés
 
 ## Bővítés
 
-- **Új eszköz:** függvény a `nexus/tools/` alatt a `@tool("leírás", dangerous=...)` dekorátorral.
-- **Új AI szolgáltató:** egy `ProviderSpec` sor a `nexus/providers/__init__.py` fájlban.
+- **Új eszköz:** függvény a `tecf/tools/` alatt a `@tool("leírás", dangerous=...)` dekorátorral.
+- **Új AI szolgáltató:** egy `ProviderSpec` sor a `tecf/providers/__init__.py` fájlban.
 - **Új alaptudás forrás:** `Crawl(...)` sor a `CRAWLS` listában, vagy RFC / Wikipedia cím a `bootstrap.py` fájlban.
 - **Szemantikus keresés (tervezett):** helyi embedding modell (pl. `ollama pull nomic-embed-text`)
   vektorai egy külön táblában, hibrid (BM25 + vektor) rangsorolással.

@@ -39,7 +39,7 @@ def tool(description: str, dangerous: bool = False):
 
 
 def load_all() -> dict[str, Tool]:
-    from nexus.tools import documents, files, network, system, web  # noqa: F401  (regisztráció)
+    from tecf.tools import documents, files, network, system, web  # noqa: F401  (regisztráció)
     return REGISTRY
 
 

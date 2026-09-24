@@ -1,6 +1,6 @@
-# NEXUS AI – saját, offline is működő, önállóan tanuló mesterséges intelligencia
+# TecF Ai – saját, offline is működő, önállóan tanuló mesterséges intelligencia
 
-A NEXUS a saját gépeden, a **D:\NexusAI** mappában fut. Saját tudásbázisa van, internet nélkül is
+A TecF Ai a saját gépeden, a **D:\TecFAi** mappában fut. Saját tudásbázisa van, internet nélkül is
 működik, és folyamatosan tanul a netről, a dokumentumaidból, más AI-któl és a te értékeléseidből.
 
 ## Fő képességek
@@ -16,9 +16,15 @@ működik, és folyamatosan tanul a netről, a dokumentumaidból, más AI-któl 
 | 🤖 **Más AI-k** | 26 szolgáltató név szerint (helyi és felhős), ezektől is tud tanulni |
 | 🔗 **Saját API** | OpenAI-kompatibilis helyi szerver, így más programok is használhatják |
 
+![TecF Ai ablak](docs/tecf_gui.png)
+
 ## Telepítés (Windows, D: meghajtó)
 
-Rendszergazdai PowerShellben, a letöltött projekt mappájában:
+1. Töltsd le a projektet (GitHub: **Code → Download ZIP**), és csomagold ki.
+2. Kattints duplán a **`TELEPITES.bat`** fájlra (rendszergazdai jogot kér).
+3. A végén az asztalon és a Start menüben megjelenik a **TecF Ai** ikon.
+
+Haladóknak ugyanez PowerShellből, kapcsolókkal:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
@@ -27,19 +33,19 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 A telepítő a következőket végzi el:
 1. telepíti a Pythont, ha még nincs fent
-2. a programot a `D:\NexusAI\app` mappába másolja, és saját Python környezetet hoz létre (`D:\NexusAI\venv`)
+2. a programot a `D:\TecFAi\app` mappába másolja, és saját Python környezetet hoz létre (`D:\TecFAi\venv`)
 3. telepíti az **Ollamát**, és a gép RAM-jához illő legjobb nyílt modellt tölti le (a modellek is a D:-re kerülnek):
    - ≥48 GB: `qwen3:32b` · ≥24 GB: `qwen3:14b` · ≥12 GB: `qwen3:8b` · egyébként: `qwen3:4b`
-4. `nexus init`: létrehozza a mappákat és feltölti a tanulási sort az alap tantervvel
-5. **`nexus bootstrap`: letölti az alaptudást a legjobb elérhető hiteles forrásokból** (lásd lent)
+4. `tecf init`: létrehozza a mappákat és feltölti a tanulási sort az alap tantervvel
+5. **`tecf bootstrap`: letölti az alaptudást a legjobb elérhető hiteles forrásokból** (lásd lent)
 6. `-NightlyLearning` kapcsolóval minden éjjel 02:00-kor 90 percig tanul
-7. asztali ikont hoz létre („NEXUS AI”)
+7. asztali és Start menü ikont hoz létre („TecF Ai”), amely az ablakos programot indítja
 
-Kapcsolók: `-Target E:\NexusAI` (más meghajtó), `-NoOllama`, `-NoBootstrap`.
+Kapcsolók: `-Target E:\TecFAi` (más meghajtó), `-NoOllama`, `-NoBootstrap`.
 
 ## Alaptudás: a legjobb elérhető források
 
-A `nexus bootstrap` parancs a netről a legmegbízhatóbb, elsődleges forrásokat tölti le. Ezek magas
+A `tecf bootstrap` parancs a netről a legmegbízhatóbb, elsődleges forrásokat tölti le. Ezek magas
 megbízhatósági pontszámot kapnak, így a keresésnél előnyt élveznek a sima weboldalakkal szemben:
 
 | Terület | Források |
@@ -51,9 +57,9 @@ megbízhatósági pontszámot kapnak, így a keresésnél előnyt élveznek a si
 | Dokumentumok | Google developer documentation style guide, Write the Docs |
 
 ```
-nexus bootstrap                          # minden terület (kb. 1–2 óra)
-nexus bootstrap -a halozat programozas   # csak ezek a területek
-nexus bootstrap --scale 0.3              # gyorsabb, kisebb alaptudás
+tecf bootstrap                          # minden terület (kb. 1–2 óra)
+tecf bootstrap -a halozat programozas   # csak ezek a területek
+tecf bootstrap --scale 0.3              # gyorsabb, kisebb alaptudás
 ```
 
 Ha a futást megszakítod, az addig letöltött tudás megmarad. Újrafuttatáskor a már meglévő tartalmat
@@ -61,28 +67,35 @@ kihagyja (tartalom-hash alapján), így a paranccsal frissíteni is lehet.
 
 **Még nagyobb offline tudásért (opcionális):** a [Kiwix](https://kiwix.org) teljes offline Wikipédiát,
 Stack Overflow-t és DevDocs-ot kínál ZIM fájlokban. Ezekből HTML-t exportálva a
-`nexus ingest <mappa>` paranccsal felveheted őket a tudásbázisba.
+`tecf ingest <mappa>` paranccsal felveheted őket a tudásbázisba.
 
 ## Használat
 
+**Ablakos program:** az asztali ikonnal indul. Írd be a kérdést, Enterrel küldöd. A 👍/👎 gombokkal
+értékeled a választ (ebből tanul). A felső gombokkal indíthatod a tanulást, a tanuló üzemet és az
+alaptudás letöltését, valamint itt veheted fel a dokumentumaidat.
+
+**Parancssor** (`D:\TecFAi\tecf.bat ...`):
+
 ```
-nexus chat                              # beszélgetés (/jo /rossz /tanul <téma> /status /kilep)
-nexus ask "Írj PowerShell szkriptet, ami listázza a 90 napja inaktív AD felhasználókat"
-nexus learn "Cisco IOS port security"   # téma megtanulása a netről
-nexus learn --loop --minutes 60         # TANULÓ ÜZEM: a tanulási sor feldolgozása
-nexus learn-ai "BGP route reflector" -p anthropic openai gemini   # tanulás más AI-któl
-nexus ingest D:\Dokumentumok\IT         # saját dokumentumok felvétele (alap: D:\NexusAI\inbox)
-nexus teach "A DC01 a tartományvezérlő, IP 192.168.1.10"
-nexus rate 42 good                      # válasz értékelése -> ebből tanul
-nexus reflect                           # rossz válaszok újratanulása és újragondolása
-nexus status                            # tudásbázis statisztika
-nexus serve                             # helyi API: http://127.0.0.1:8765/v1/chat/completions
+tecf                                   # ablakos program
+tecf chat                              # beszélgetés (/jo /rossz /tanul <téma> /status /kilep)
+tecf ask "Írj PowerShell szkriptet, ami listázza a 90 napja inaktív AD felhasználókat"
+tecf learn "Cisco IOS port security"   # téma megtanulása a netről
+tecf learn --loop --minutes 60         # TANULÓ ÜZEM: a tanulási sor feldolgozása
+tecf learn-ai "BGP route reflector" -p anthropic openai gemini   # tanulás más AI-któl
+tecf ingest D:\Dokumentumok\IT         # saját dokumentumok felvétele (alap: D:\TecFAi\inbox)
+tecf teach "A DC01 a tartományvezérlő, IP 192.168.1.10"
+tecf rate 42 good                      # válasz értékelése -> ebből tanul
+tecf reflect                           # rossz válaszok újratanulása és újragondolása
+tecf status                            # tudásbázis statisztika
+tecf serve                             # helyi API: http://127.0.0.1:8765/v1/chat/completions
 ```
 
 ## AI szolgáltatók (név szerint)
 
-`nexus providers` kilistázza az összeset az állapotukkal együtt. Kulcs megadása:
-`nexus keys set <név> <kulcs>` (a kulcs a `D:\NexusAI\config\api_keys.json` fájlba kerül), vagy
+`tecf providers` kilistázza az összeset az állapotukkal együtt. Kulcs megadása:
+`tecf keys set <név> <kulcs>` (a kulcs a `D:\TecFAi\config\api_keys.json` fájlba kerül), vagy
 környezeti változóval.
 
 **Helyi (offline):** Ollama, LM Studio, llama.cpp, LocalAI, Jan
@@ -90,8 +103,8 @@ környezeti változóval.
 Perplexity, Together AI, OpenRouter, Fireworks, Cerebras, Hugging Face, NVIDIA NIM, Alibaba Qwen,
 Moonshot Kimi, Zhipu GLM, AI21, SambaNova, Azure OpenAI
 
-Modell cseréje: `nexus keys set openai_model gpt-4o`, vagy egyszeri használatnál `openai:gpt-4o`.
-Egyéni cím: `nexus keys set azure_url https://...`.
+Modell cseréje: `tecf keys set openai_model gpt-4o`, vagy egyszeri használatnál `openai:gpt-4o`.
+Egyéni cím: `tecf keys set azure_url https://...`.
 
 A `config.json` fájlban:
 - `fallback_providers`: melyik felhős AI-t használja, ha a helyi modell nem fut
@@ -114,9 +127,9 @@ A `config.json` fájlban:
 2. **Tanuló üzem:** keres a neten, letölti és feldarabolja az oldalakat, a modellel kivonja a
    legfontosabb tényeket, és kapcsolódó altémákat is sorba állít, így a tudása magától bővül.
 3. **Visszajelzés:** a jónak értékelt válasz megbízható tudássá válik, a rossz válasz témáját pedig
-   újratanulja (`nexus reflect`).
+   újratanulja (`tecf reflect`).
 4. **Megerősítés:** az ismételten megtanult tények megbízhatósága nő, és a keresésnél előrébb kerülnek.
-5. **Finomhangolás (haladó):** `nexus export tanito.jsonl` exportálja a jó válaszokat, amelyekkel
+5. **Finomhangolás (haladó):** `tecf export tanito.jsonl` exportálja a jó válaszokat, amelyekkel
    a helyi modell LoRA-val továbbtanítható (pl. Unsloth vagy LLaMA-Factory segítségével), majd Ollamába importálható.
 
 ## Biztonság
@@ -133,15 +146,15 @@ A `config.json` fájlban:
 ## Mappaszerkezet
 
 ```
-D:\NexusAI\
-  app\nexus\        program
+D:\TecFAi\
+  app\tecf\        program
   venv\             saját Python környezet
   models\           Ollama modellek (offline)
   data\knowledge.db tudásbázis (SQLite + FTS5)
   inbox\            ide másolt dokumentumokat az `ingest` feldolgozza
   output\           elkészült dokumentumok
   config\           config.json, api_keys.json
-  nexus.bat         indító
+  tecf.bat         indító
 ```
 
 Részletes felépítés: [docs/ARCHITEKTURA.md](docs/ARCHITEKTURA.md)

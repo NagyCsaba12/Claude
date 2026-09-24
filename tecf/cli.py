@@ -1,29 +1,30 @@
-"""NEXUS parancssor.
+"""TecF Ai parancssor.
 
-  nexus init                      – könyvtárak (D:\\NexusAI), konfiguráció, alap tanterv
-  nexus bootstrap                 – ALAPTUDÁS: legjobb hiteles források letöltése (dokumentációk, RFC, Wikipedia)
-  nexus chat                      – interaktív beszélgetés (eszközhasználattal)
-  nexus ask "kérdés"              – egyszeri kérdés
-  nexus learn "téma" [...]        – témák megtanulása a netről
-  nexus learn --loop --minutes 60 – TANULÓ ÜZEM: a tanulási sor folyamatos feldolgozása
-  nexus learn-ai "téma" -p openai anthropic – tanulás más AI-któl
-  nexus ingest <fájl|mappa>       – dokumentumok felvétele a tudásbázisba (alap: inbox)
-  nexus providers                 – AI szolgáltatók név szerinti listája és állapota
-  nexus keys set <név> <kulcs>    – API kulcs mentése
-  nexus teach "tény"              – tény kézi megtanítása
-  nexus rate <id> good|bad        – válasz értékelése (ebből tanul)
-  nexus reflect                   – rossz válaszok újragondolása
-  nexus status                    – tudásbázis statisztika
-  nexus export <fájl.jsonl>       – finomhangoló adatok exportja
-  nexus serve [--port 8765]       – helyi, OpenAI-kompatibilis API szerver
+  tecf init                      – könyvtárak (D:\\TecFAi), konfiguráció, alap tanterv
+  tecf bootstrap                 – ALAPTUDÁS: legjobb hiteles források letöltése (dokumentációk, RFC, Wikipedia)
+  tecf  /  tecf gui              – asztali ablak
+  tecf chat                      – interaktív beszélgetés a parancssorban (eszközhasználattal)
+  tecf ask "kérdés"              – egyszeri kérdés
+  tecf learn "téma" [...]        – témák megtanulása a netről
+  tecf learn --loop --minutes 60 – TANULÓ ÜZEM: a tanulási sor folyamatos feldolgozása
+  tecf learn-ai "téma" -p openai anthropic – tanulás más AI-któl
+  tecf ingest <fájl|mappa>       – dokumentumok felvétele a tudásbázisba (alap: inbox)
+  tecf providers                 – AI szolgáltatók név szerinti listája és állapota
+  tecf keys set <név> <kulcs>    – API kulcs mentése
+  tecf teach "tény"              – tény kézi megtanítása
+  tecf rate <id> good|bad        – válasz értékelése (ebből tanul)
+  tecf reflect                   – rossz válaszok újragondolása
+  tecf status                    – tudásbázis statisztika
+  tecf export <fájl.jsonl>       – finomhangoló adatok exportja
+  tecf serve [--port 8765]       – helyi, OpenAI-kompatibilis API szerver
 """
 from __future__ import annotations
 
 import argparse
 import sys
 
-from nexus import __version__
-from nexus.config import Config
+from tecf import __version__
+from tecf.config import Config
 
 
 def _confirm(action: str) -> bool:
@@ -34,24 +35,29 @@ def _confirm(action: str) -> bool:
 
 
 def _brain(cfg: Config):
-    from nexus.brain import Brain
+    from tecf.brain import Brain
     return Brain(cfg, confirm=_confirm)
 
 
 def cmd_init(cfg: Config, a) -> None:
-    from nexus.learning import Learner
+    from tecf.learning import Learner
     cfg.save()
     n = Learner(_brain(cfg)).seed_curriculum()
-    print(f"NEXUS inicializálva: {cfg.root}\n  konfiguráció: {cfg.config_path}\n  tudásbázis:   {cfg.db_path}\n"
+    print(f"TecF Ai inicializálva: {cfg.root}\n  konfiguráció: {cfg.config_path}\n  tudásbázis:   {cfg.db_path}\n"
           f"  inbox:        {cfg.inbox_dir}\n  {n} alap téma a tanulási sorban.\n\n"
           "Következő lépések:\n  1) Offline modell: telepítsd az Ollamát, majd: ollama pull " + cfg.local_model +
-          "\n  2) nexus bootstrap   (alaptudás letöltése a netről)"
-          "\n  3) (opcionális) nexus keys set anthropic <kulcs>\n  4) nexus learn --loop --minutes 60\n  5) nexus chat")
+          "\n  2) tecf bootstrap   (alaptudás letöltése a netről)"
+          "\n  3) (opcionális) tecf keys set anthropic <kulcs>\n  4) tecf learn --loop --minutes 60\n  5) tecf chat")
+
+
+def cmd_gui(cfg: Config, a) -> None:
+    from tecf.gui import main as gui_main
+    gui_main(cfg)
 
 
 def cmd_bootstrap(cfg: Config, a) -> None:
-    from nexus.bootstrap import Bootstrapper
-    from nexus.knowledge import KnowledgeBase
+    from tecf.bootstrap import Bootstrapper
+    from tecf.knowledge import KnowledgeBase
     print("ALAPTUDÁS letöltése a legjobb elérhető forrásokból (ez akár 1-2 óra is lehet)...")
     try:
         n = Bootstrapper(KnowledgeBase(cfg.db_path), delay=a.delay, scale=a.scale).run(a.areas or None)
@@ -64,7 +70,7 @@ def cmd_bootstrap(cfg: Config, a) -> None:
 def cmd_chat(cfg: Config, a) -> None:
     b = _brain(cfg)
     p = b.provider()
-    print(f"NEXUS {__version__} – modell: {p.label if p else 'nincs (offline tudásbázis mód)'}")
+    print(f"TecF Ai {__version__} – modell: {p.label if p else 'nincs (offline tudásbázis mód)'}")
     print("Parancsok: /jo /rossz (előző válasz értékelése), /tanul <téma>, /status, /kilep\n")
     history: list[dict] = []
     last_id = None
@@ -83,7 +89,7 @@ def cmd_chat(cfg: Config, a) -> None:
             print("Köszönöm, megjegyeztem.\n")
             continue
         if q.startswith("/tanul "):
-            from nexus.learning import Learner
+            from tecf.learning import Learner
             Learner(b).learn_topic(q[7:].strip())
             continue
         if q == "/status":
@@ -91,17 +97,17 @@ def cmd_chat(cfg: Config, a) -> None:
             continue
         answer, last_id = b.ask(q, history[-12:])
         history += [{"role": "user", "content": q}, {"role": "assistant", "content": answer}]
-        print(f"\nNEXUS> {answer}\n")
+        print(f"\nTecF Ai> {answer}\n")
 
 
 def cmd_ask(cfg: Config, a) -> None:
     answer, cid = _brain(cfg).ask(" ".join(a.question))
     print(answer)
-    print(f"\n[#{cid}] értékelés: nexus rate {cid} good|bad", file=sys.stderr)
+    print(f"\n[#{cid}] értékelés: tecf rate {cid} good|bad", file=sys.stderr)
 
 
 def cmd_learn(cfg: Config, a) -> None:
-    from nexus.learning import Learner
+    from tecf.learning import Learner
     ln = Learner(_brain(cfg))
     for t in a.topics:
         print(f"→ {ln.learn_topic(t)} új forrás")
@@ -113,22 +119,22 @@ def cmd_learn(cfg: Config, a) -> None:
         except KeyboardInterrupt:
             print("\nLeállítva.")
     if not a.topics and not a.loop:
-        print("Adj meg témát, vagy használd: nexus learn --loop")
+        print("Adj meg témát, vagy használd: tecf learn --loop")
 
 
 def cmd_learn_ai(cfg: Config, a) -> None:
-    from nexus.learning import Learner
+    from tecf.learning import Learner
     n = Learner(_brain(cfg)).learn_from_ais(" ".join(a.topic), providers=a.providers or None)
     print(f"{n} AI válasz eltárolva.")
 
 
 def cmd_ingest(cfg: Config, a) -> None:
-    from nexus.learning import Learner
+    from tecf.learning import Learner
     print(f"{Learner(_brain(cfg)).ingest_path(a.path or cfg.inbox_dir)} dokumentum felvéve.")
 
 
 def cmd_providers(cfg: Config, a) -> None:
-    from nexus.providers import PROVIDERS, get_provider
+    from tecf.providers import PROVIDERS, get_provider
     keys = cfg.load_keys()
     print(f"{'NÉV':<12} {'SZOLGÁLTATÓ':<42} {'ALAP MODELL':<34} ÁLLAPOT")
     for name, spec in PROVIDERS.items():
@@ -141,7 +147,7 @@ def cmd_providers(cfg: Config, a) -> None:
 
 
 def cmd_keys(cfg: Config, a) -> None:
-    from nexus.providers import PROVIDERS
+    from tecf.providers import PROVIDERS
     base = a.name.removesuffix("_url").removesuffix("_model")
     if base not in PROVIDERS:
         sys.exit(f"Ismeretlen szolgáltató: {a.name}")
@@ -150,46 +156,47 @@ def cmd_keys(cfg: Config, a) -> None:
 
 
 def cmd_teach(cfg: Config, a) -> None:
-    from nexus.knowledge import KnowledgeBase
+    from tecf.knowledge import KnowledgeBase
     KnowledgeBase(cfg.db_path).remember(" ".join(a.fact), a.category, confidence=0.9)
     print("Megtanultam.")
 
 
 def cmd_rate(cfg: Config, a) -> None:
-    from nexus.knowledge import KnowledgeBase
+    from tecf.knowledge import KnowledgeBase
     KnowledgeBase(cfg.db_path).rate(a.id, 1 if a.value in ("good", "jo", "jó", "+") else -1)
     print("Értékelés mentve.")
 
 
 def cmd_reflect(cfg: Config, a) -> None:
-    from nexus.learning import Learner
+    from tecf.learning import Learner
     print(f"{Learner(_brain(cfg)).reflect(a.limit)} válasz újragondolva.")
 
 
 def cmd_status(cfg: Config, a, brain=None) -> None:
-    from nexus.knowledge import KnowledgeBase
+    from tecf.knowledge import KnowledgeBase
     kb = brain.kb if brain else KnowledgeBase(cfg.db_path)
-    print(f"NEXUS {__version__}  –  {cfg.root}")
+    print(f"TecF Ai {__version__}  –  {cfg.root}")
     for k, v in kb.stats().items():
         print(f"  {k:<16} {v}")
 
 
 def cmd_export(cfg: Config, a) -> None:
-    from nexus.knowledge import KnowledgeBase
+    from tecf.knowledge import KnowledgeBase
     n = KnowledgeBase(cfg.db_path).export_training_data(a.file)
     print(f"{n} példa exportálva: {a.file}")
 
 
 def cmd_serve(cfg: Config, a) -> None:
-    from nexus.server import serve
+    from tecf.server import serve
     serve(cfg, a.host, a.port)
 
 
 def build_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(prog="nexus", description="NEXUS – saját, offline is működő tanuló AI")
-    ap.add_argument("--home", help="Telepítési könyvtár (alap: D:\\NexusAI)")
+    ap = argparse.ArgumentParser(prog="tecf", description="TecF Ai – saját, offline is működő tanuló AI")
+    ap.add_argument("--home", help="Telepítési könyvtár (alap: D:\\TecFAi)")
     ap.add_argument("--offline", action="store_true", help="Csak helyi modell / tudásbázis")
-    sp = ap.add_subparsers(dest="cmd", required=True)
+    sp = ap.add_subparsers(dest="cmd")
+    sp.add_parser("gui").set_defaults(fn=cmd_gui)
     sp.add_parser("init").set_defaults(fn=cmd_init)
     p = sp.add_parser("bootstrap")
     p.add_argument("-a", "--areas", nargs="*", choices=["programozas", "rendszergazda", "halozat", "dokumentumok"])
@@ -245,6 +252,8 @@ def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     a = build_parser().parse_args(argv)
+    if a.cmd is None:  # paraméter nélkül az asztali ablak indul
+        a.fn = cmd_gui
     cfg = Config.load(a.home)
     if a.offline:
         cfg.offline_only = True

@@ -1,4 +1,4 @@
-"""Helyi, OpenAI-kompatibilis API szerver, hogy más programok is használhassák a NEXUS-t.
+"""Helyi, OpenAI-kompatibilis API szerver, hogy más programok is használhassák a TecF Ai-t.
 
   POST http://127.0.0.1:8765/v1/chat/completions   {"messages": [...]}
   GET  http://127.0.0.1:8765/v1/models
@@ -14,9 +14,9 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from nexus.brain import Brain
-from nexus.config import Config
-from nexus.knowledge import KnowledgeBase
+from tecf.brain import Brain
+from tecf.config import Config
+from tecf.knowledge import KnowledgeBase
 
 
 def serve(cfg: Config, host: str = "127.0.0.1", port: int = 8765) -> None:
@@ -36,7 +36,7 @@ def serve(cfg: Config, host: str = "127.0.0.1", port: int = 8765) -> None:
 
         def do_GET(self):
             if self.path == "/v1/models":
-                self._send(200, {"object": "list", "data": [{"id": "nexus", "object": "model"}]})
+                self._send(200, {"object": "list", "data": [{"id": "tecf", "object": "model"}]})
             elif self.path == "/status":
                 with lock:
                     stats = brain.kb.stats()
@@ -55,9 +55,9 @@ def serve(cfg: Config, host: str = "127.0.0.1", port: int = 8765) -> None:
                 return self._send(400, {"error": "hibás kérés"})
             with lock:  # SQLite kapcsolat szálbiztos használata
                 answer, cid = brain.ask(question, msgs[:-1])
-            self._send(200, {"id": f"nexus-{cid}", "object": "chat.completion", "created": int(time.time()),
-                             "model": "nexus", "choices": [{"index": 0, "finish_reason": "stop",
+            self._send(200, {"id": f"tecf-{cid}", "object": "chat.completion", "created": int(time.time()),
+                             "model": "tecf", "choices": [{"index": 0, "finish_reason": "stop",
                                                             "message": {"role": "assistant", "content": answer}}]})
 
-    print(f"NEXUS API: http://{host}:{port}/v1/chat/completions  (Ctrl+C a leállításhoz)")
+    print(f"TecF Ai API: http://{host}:{port}/v1/chat/completions  (Ctrl+C a leállításhoz)")
     ThreadingHTTPServer((host, port), Handler).serve_forever()
