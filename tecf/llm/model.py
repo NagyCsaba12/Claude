@@ -107,8 +107,10 @@ class GPT(nn.Module):
 
     @torch.no_grad()
     def generate(self, idx: torch.Tensor, max_new_tokens: int, temperature: float = 0.8, top_k: int = 50,
-                 top_p: float = 0.95, stop_ids: set[int] | None = None) -> torch.Tensor:
+                 top_p: float = 0.95, stop_ids: set[int] | None = None, cancel=None) -> torch.Tensor:
         for _ in range(max_new_tokens):
+            if cancel is not None and cancel.is_set():
+                break
             cond = idx[:, -self.config.block_size:]
             logits, _ = self(cond)
             logits = logits[:, -1, :] / max(temperature, 1e-5)

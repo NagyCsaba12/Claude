@@ -89,6 +89,19 @@ class ProviderError(RuntimeError):
     pass
 
 
+class Cancelled(Exception):
+    """A felhasználó leállította a választ. `partial`: az addig elkészült szöveg."""
+
+    def __init__(self, partial: str = ""):
+        super().__init__("leállítva")
+        self.partial = partial
+
+
+def _check(cancel, partial: str = "") -> None:
+    if cancel is not None and cancel.is_set():
+        raise Cancelled(partial)
+
+
 def _post(url: str, payload: dict, headers: dict, timeout: float) -> dict:
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"),
                                  headers={"Content-Type": "application/json", **headers}, method="POST")
@@ -99,6 +112,37 @@ def _post(url: str, payload: dict, headers: dict, timeout: float) -> dict:
         raise ProviderError(f"HTTP {e.code}: {e.read().decode('utf-8', 'replace')[:400]}") from e
     except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
         raise ProviderError(f"Nem elérhető: {e}") from e
+
+
+def _stream_openai(url: str, payload: dict, headers: dict, timeout: float, cancel, on_token) -> str:
+    """Folyamatos (darabonkénti) válasz. Leállításkor a kapcsolat bezárul, így a modell is abbahagyja."""
+    req = urllib.request.Request(url, data=json.dumps({**payload, "stream": True}).encode("utf-8"),
+                                 headers={"Content-Type": "application/json", **headers}, method="POST")
+    parts: list[str] = []
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            for raw in r:
+                _check(cancel, "".join(parts))
+                line = raw.decode("utf-8", "replace").strip()
+                if not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
+                if data == "[DONE]":
+                    break
+                try:
+                    choices = json.loads(data).get("choices") or []
+                except json.JSONDecodeError:
+                    continue
+                delta = (choices[0].get("delta") or {}).get("content") if choices else None
+                if delta:
+                    parts.append(delta)
+                    if on_token:
+                        on_token(delta)
+    except urllib.error.HTTPError as e:
+        raise ProviderError(f"HTTP {e.code}: {e.read().decode('utf-8', 'replace')[:400]}") from e
+    except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+        raise ProviderError(f"Nem elérhető: {e}") from e
+    return "".join(parts)
 
 
 class Provider:
@@ -139,7 +183,15 @@ class Provider:
         return bool(self.api_key) and bool(self.base_url)
 
     def chat(self, messages: list[dict], system: str = "", temperature: float = 0.3,
-             max_tokens: int = 2048) -> str:
+             max_tokens: int = 2048, cancel=None, on_token=None) -> str:
+        """`cancel`: threading.Event – ha beállítják, a válasz leáll (Cancelled kivétel).
+        `on_token`: a válasz darabjait kapja meg, amint megérkeznek (élő megjelenítéshez)."""
+        _check(cancel)
+        text = self._chat(messages, system, temperature, max_tokens, cancel, on_token)
+        _check(cancel, text)
+        return text
+
+    def _chat(self, messages, system, temperature, max_tokens, cancel, on_token) -> str:
         style = self.spec.style
         if style == "native":
             root = self._own_root()
@@ -147,9 +199,12 @@ class Provider:
                 if (root / "alap" / "modell" / "config.json").exists():  # alaptudással indított saját modell
                     from tecf.llm.base import BaseModelRunner
                     return BaseModelRunner.get(root / "alap" / "modell").chat(messages, system, temperature,
-                                                                               max_tokens)
+                                                                               max_tokens, cancel)
                 from tecf.llm.infer import OwnModel  # nulláról tanított saját modell
-                return OwnModel.get(root).chat(messages, system, max(temperature, 0.5), min(max_tokens, 400))
+                return OwnModel.get(root).chat(messages, system, max(temperature, 0.5), min(max_tokens, 400),
+                                               cancel)
+            except Cancelled:
+                raise
             except Exception as e:
                 raise ProviderError(f"Saját modell hiba: {e}") from e
         if style == "anthropic":
@@ -179,8 +234,10 @@ class Provider:
         url = f"{self.base_url}/chat/completions"
         if self.spec.name == "azure":
             url += "?api-version=2024-10-21"
-        data = _post(url, {"model": self.model, "messages": msgs, "temperature": temperature,
-                           "max_tokens": max_tokens}, headers, self.timeout)
+        payload = {"model": self.model, "messages": msgs, "temperature": temperature, "max_tokens": max_tokens}
+        if cancel is not None or on_token is not None:
+            return _stream_openai(url, payload, headers, self.timeout, cancel, on_token)
+        data = _post(url, payload, headers, self.timeout)
         return data["choices"][0]["message"]["content"]
 
 

@@ -77,7 +77,9 @@ Stack Overflow-t és DevDocs-ot kínál ZIM fájlokban. Ezekből HTML-t exportá
 
 ## Használat
 
-**Ablakos program:** az asztali ikonnal indul. Írd be a kérdést, Enterrel küldöd. A 👍/👎 gombokkal
+**Ablakos program:** az asztali ikonnal indul. Írd be a kérdést, Enterrel küldöd. A válasz
+gépelés közben jelenik meg; a **⏹ Leállítás** gombbal vagy az **Esc** billentyűvel bármikor
+leállíthatod (ilyenkor a modell is azonnal abbahagyja a munkát). A 👍/👎 gombokkal
 értékeled a választ (ebből tanul). A felső gombokkal indíthatod a tanulást, a tanuló üzemet és az
 alaptudás letöltését, valamint itt veheted fel a dokumentumaidat.
 

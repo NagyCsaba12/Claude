@@ -39,19 +39,19 @@ class OwnModel:
                 _cache[key] = m
             return m
 
-    def complete(self, prompt: str, max_tokens: int = 200, temperature: float = 0.8) -> str:
+    def complete(self, prompt: str, max_tokens: int = 200, temperature: float = 0.8, cancel=None) -> str:
         ids = self.tok.encode(prompt)
         room = max(16, self.cfg.block_size - min(max_tokens, self.cfg.block_size // 2))
         ids = ids[-room:]  # a kontextusba nem férő eleje levágva
         x = torch.tensor([ids], dtype=torch.long, device=self.device)
         out = self.model.generate(x, min(max_tokens, self.cfg.block_size), temperature=temperature,
-                                  stop_ids=self.stop_ids)[0].tolist()[len(ids):]
+                                  stop_ids=self.stop_ids, cancel=cancel)[0].tolist()[len(ids):]
         out = [i for i in out if i not in self.stop_ids]
         return self.tok.decode(out).strip()
 
     def chat(self, messages: list[dict], system: str = "", temperature: float = 0.7,
-             max_tokens: int = 400) -> str:
+             max_tokens: int = 400, cancel=None) -> str:
         # kis kontextusú modellnél a hosszú rendszerüzenet elfoglalná a helyet: csak az eleje marad
         sys_short = system[: self.cfg.block_size]
         return self.complete(format_chat(messages[-6:], sys_short, add_generation_prompt=True), max_tokens,
-                             temperature)
+                             temperature, cancel)

@@ -82,7 +82,8 @@ def cmd_chat(cfg: Config, a) -> None:
     b = _brain(cfg)
     p = b.provider()
     print(f"TecF Ai {__version__} – modell: {p.label if p else 'nincs (offline tudásbázis mód)'}")
-    print("Parancsok: /jo /rossz (előző válasz értékelése), /tanul <téma>, /status, /kilep\n")
+    print("Parancsok: /jo /rossz (előző válasz értékelése), /tanul <téma>, /status, /kilep"
+          "  –  Ctrl+C: válasz leállítása\n")
     history: list[dict] = []
     last_id = None
     while True:
@@ -106,9 +107,34 @@ def cmd_chat(cfg: Config, a) -> None:
         if q == "/status":
             cmd_status(cfg, a, b)
             continue
-        answer, last_id = b.ask(q, history[-12:])
+        import threading
+        cancel, streamed = threading.Event(), []
+
+        def on_token(t: str) -> None:
+            if not streamed:
+                print("\nTecF Ai> ", end="", flush=True)
+            streamed.append(t)
+            print(t, end="", flush=True)
+
+        result: list = []
+        worker = threading.Thread(target=lambda: result.append(b.ask(q, history[-12:], cancel=cancel,
+                                                                      on_token=on_token)), daemon=True)
+        worker.start()
+        try:
+            while worker.is_alive():
+                worker.join(0.2)
+        except KeyboardInterrupt:  # Ctrl+C: a válasz leáll, a beszélgetés folytatódik
+            cancel.set()
+            worker.join()
+        if not result:
+            continue
+        answer, last_id = result[0]
         history += [{"role": "user", "content": q}, {"role": "assistant", "content": answer}]
-        print(f"\nTecF Ai> {answer}\n")
+        print(f"\n\n" if streamed and not cancel.is_set() else "", end="")
+        if not streamed:
+            print(f"\nTecF Ai> {answer}\n")
+        elif cancel.is_set():
+            print("\n⏹ (Leállítva)\n")
 
 
 def cmd_ask(cfg: Config, a) -> None:

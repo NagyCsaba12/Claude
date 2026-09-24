@@ -13,7 +13,7 @@ from typing import Callable
 
 from tecf.config import Config
 from tecf.knowledge import KnowledgeBase
-from tecf.providers import Provider, ProviderError, get_provider
+from tecf.providers import Cancelled, Provider, ProviderError, get_provider
 from tecf.tools import REGISTRY, Tool, describe_tools, parse_tool_calls, run_tool
 
 IDENTITY = """Te TecF Ai vagy, egy saját gépen futó, folyamatosan tanuló mesterséges intelligencia.
@@ -39,6 +39,9 @@ ESZKÖZÖK – ha eszközt akarsz használni, válaszodban PONTOSAN így jelezd 
 Az eszköz eredményét a következő üzenetben kapod meg. Ha kész vagy, eszközblokk nélkül adj végleges választ.
 Elérhető eszközök:
 """
+
+
+STOPPED = "⏹ (Leállítva)"
 
 
 class Brain:
@@ -107,8 +110,10 @@ class Brain:
         return sp
 
     # ---------------- válasz ----------------
-    def ask(self, question: str, history: list[dict] | None = None, max_steps: int = 8) -> tuple[str, int]:
-        """Visszaad: (válasz, beszélgetés id az értékeléshez)."""
+    def ask(self, question: str, history: list[dict] | None = None, max_steps: int = 8, cancel=None,
+            on_token: Callable[[str], None] | None = None) -> tuple[str, int]:
+        """Visszaad: (válasz, beszélgetés id az értékeléshez).
+        `cancel` (threading.Event): leállítja a választ; `on_token`: élő megjelenítés darabonként."""
         context, n_hits = self.build_context(question)
         prov = self.provider()
         if prov is None:
@@ -116,20 +121,25 @@ class Brain:
             model = "offline-kb"
         else:
             model = prov.label
-            answer = self._agent_loop(prov, question, history or [], context, max_steps)
+            try:
+                answer = self._agent_loop(prov, question, history or [], context, max_steps, cancel, on_token)
+            except Cancelled as c:
+                answer = (c.partial.rstrip() + "\n\n" if c.partial.strip() else "") + STOPPED
         if n_hits == 0:
             self.kb.queue_topic(question[:200], priority=4, reason="tudáshiány a kérdésnél")
         conv_id = self.kb.log_conversation(question, answer, model, n_hits)
         return answer, conv_id
 
     def _agent_loop(self, prov: Provider, question: str, history: list[dict], context: str,
-                    max_steps: int) -> str:
+                    max_steps: int, cancel=None, on_token=None) -> str:
         system = self.system_prompt(context)
         msgs = list(history) + [{"role": "user", "content": question}]
         reply = ""
-        for _ in range(max_steps):
+        for step in range(max_steps):
+            if step and on_token:
+                on_token("\n\n")  # új lépés az eszközök eredménye után
             try:
-                reply = prov.chat(msgs, system=system)
+                reply = prov.chat(msgs, system=system, cancel=cancel, on_token=on_token)
             except ProviderError as e:
                 self.log(f"[{prov.label}] hiba: {e} – próbálom a következő modellt")
                 nxt = self.provider(refresh=True)
@@ -142,6 +152,8 @@ class Brain:
                 return reply
             results = []
             for c in calls:
+                if cancel is not None and cancel.is_set():
+                    raise Cancelled(reply)
                 self.log(f"  ⚙ {c.get('tool')} {json.dumps(c.get('args', {}), ensure_ascii=False)[:150]}")
                 t = REGISTRY.get(c.get("tool", ""))
                 need_confirm = t is not None and t.dangerous and (

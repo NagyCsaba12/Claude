@@ -10,11 +10,12 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, simpledialog
 
 from tecf import __version__
-from tecf.brain import Brain
+from tecf.brain import STOPPED, Brain
 from tecf.config import Config
 from tecf.knowledge import KnowledgeBase
 
 BG, PANEL, FG, ACCENT, MUTED = "#0f172a", "#1e293b", "#e2e8f0", "#38bdf8", "#94a3b8"
+STOP = "#dc2626"
 
 
 class TecFApp:
@@ -28,6 +29,7 @@ class TecFApp:
         self.ui: queue.Queue = queue.Queue()
         self.history: list[dict] = []
         self.last_id: int | None = None
+        self.cancel: threading.Event | None = None  # a folyamatban lévő válasz leállítója
         self.brain = Brain(cfg, KnowledgeBase(cfg.db_path, threaded=True),
                            confirm=self._confirm_from_worker, log=self._log)
         # az ablak eseménykezelőiben keletkező hibák se vesszenek el (konzol nélkül nem látszanának)
@@ -44,13 +46,13 @@ class TecFApp:
         top.pack(fill="x")
         tk.Label(top, text="TecF Ai", fg=ACCENT, bg=PANEL, font=("Segoe UI", 16, "bold")).pack(side="left", padx=12,
                                                                                             pady=8)
-        for text, cmd in [("📚 Tanulj témát", self._learn_topic), ("🔁 Tanuló üzem", self._learn_loop),
-                          ("🌐 Alaptudás letöltése", self._bootstrap), ("📄 Dokumentum felvétele", self._ingest),
+        for text, cmd in [("📚 Tanulás", self._learn_topic), ("🔁 Tanuló üzem", self._learn_loop),
+                          ("🌐 Alaptudás", self._bootstrap), ("📄 Dokumentum", self._ingest),
                           ("🧬 Saját modell", self._own_model),
                           ("📊 Állapot", lambda: self._run_bg(self._show_stats)),
                           ("⟳ Frissítés", self._update)]:
             tk.Button(top, text=text, command=cmd, bg=BG, fg=FG, relief="flat", activebackground=ACCENT,
-                      padx=10).pack(side="left", padx=3)
+                      padx=7).pack(side="left", padx=2)
 
         self.chat = scrolledtext.ScrolledText(self.root, wrap="word", bg=BG, fg=FG, insertbackground=FG,
                                               font=("Consolas", 11), relief="flat", padx=12, pady=8)
@@ -66,6 +68,7 @@ class TecFApp:
                              relief="flat", wrap="word")
         self.entry.pack(side="left", fill="x", expand=True)
         self.entry.bind("<Return>", self._on_enter)
+        self.root.bind("<Escape>", lambda _e: self._stop())
         side = tk.Frame(bottom, bg=BG)
         side.pack(side="left", padx=(6, 0))
         self.send_btn = tk.Button(side, text="Küldés ➤", command=self._send, bg=ACCENT, fg=BG, relief="flat",
@@ -81,7 +84,7 @@ class TecFApp:
         self.status = tk.Label(self.root, text="Indulás...", anchor="w", bg=PANEL, fg=MUTED, padx=10)
         self.status.pack(fill="x", side="bottom")
         self._write("TecF Ai", "Szia! Kérdezz bármit (rendszergazda, programozás, dokumentumok, hálózat). "
-                               "Enter: küldés, Shift+Enter: új sor.", "ai")
+                               "Enter: küldés, Shift+Enter: új sor, Esc: válasz leállítása.", "ai")
         self.entry.focus_set()
 
     def _write(self, who: str, text: str, tag: str) -> None:
@@ -113,7 +116,8 @@ class TecFApp:
                     fn(*args)
                 except Exception as e:  # a hiba az ablakban jelenjen meg, ne álljon le a program
                     self._log(f"Hiba: {type(e).__name__}: {e}")
-            self.ui.put(lambda: self.send_btn.configure(state="normal"))
+            if fn == self._answer:  # a gombot csak a válasz vége állítja vissza
+                self.ui.put(self._idle)
         threading.Thread(target=work, daemon=True).start()
 
     def _confirm_from_worker(self, action: str) -> bool:
@@ -136,18 +140,56 @@ class TecFApp:
         return None
 
     def _send(self) -> None:
+        if self.cancel is not None:  # válaszadás közben a gomb leállít
+            self._stop()
+            return
         q = self.entry.get("1.0", "end").strip()
         if not q:
             return
         self.entry.delete("1.0", "end")
         self._write("Te", q, "user")
-        self.send_btn.configure(state="disabled")
-        self._run_bg(self._answer, q)
+        self.cancel = threading.Event()
+        self.send_btn.configure(text="⏹ Leállítás", bg=STOP, fg=FG)
+        self._run_bg(self._answer, q, self.cancel)
 
-    def _answer(self, q: str) -> None:
-        answer, self.last_id = self.brain.ask(q, self.history[-12:])
+    def _stop(self) -> None:
+        """A folyamatban lévő válasz leállítása (gomb vagy Esc)."""
+        if self.cancel is not None and not self.cancel.is_set():
+            self.cancel.set()
+            self.send_btn.configure(text="Leállítás...", state="disabled")
+
+    def _idle(self) -> None:
+        self.cancel = None
+        self.send_btn.configure(text="Küldés ➤", bg=ACCENT, fg=BG, state="normal")
+
+    def _append_header(self, who: str) -> None:
+        self.chat.configure(state="normal")
+        self.chat.insert("end", f"\n{who}:\n", "ai")
+        self.chat.configure(state="disabled")
+
+    def _append(self, text: str) -> None:
+        self.chat.configure(state="normal")
+        self.chat.insert("end", text, "ai")
+        self.chat.configure(state="disabled")
+        self.chat.see("end")
+
+    def _answer(self, q: str, cancel: threading.Event) -> None:
+        streamed = []
+
+        def on_token(t: str) -> None:
+            if not streamed:  # az első darabnál kiírja a fejlécet
+                self.ui.put(lambda: self._append_header("TecF Ai"))
+            streamed.append(t)
+            self.ui.put(lambda: self._append(t))
+
+        answer, self.last_id = self.brain.ask(q, self.history[-12:], cancel=cancel, on_token=on_token)
         self.history += [{"role": "user", "content": q}, {"role": "assistant", "content": answer}]
-        self.ui.put(lambda: self._write("TecF Ai", answer, "ai"))
+        if not streamed:
+            self.ui.put(lambda: self._write("TecF Ai", answer, "ai"))
+        elif cancel.is_set():
+            self.ui.put(lambda: self._append("\n" + STOPPED + "\n"))
+        else:
+            self.ui.put(lambda: self._append("\n"))
         self._refresh_status()
 
     def _rate(self, value: int) -> None:
