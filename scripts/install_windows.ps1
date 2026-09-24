@@ -104,6 +104,7 @@ if (-not $NoOllama) {
 [Environment]::SetEnvironmentVariable("TECF_HOME", $Target, "User")
 $env:TECF_HOME = $Target
 Invoke-Step "TecF Ai inicializálása" { & "$Target\tecf.bat" init }
+& "$Target\tecf.bat" update --mark   # a telepített változat rögzítése (a későbbi frissítésekhez)
 $cfgPath = "$Target\config\config.json"
 $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json
 $cfg.local_model = $model

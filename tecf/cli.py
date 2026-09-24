@@ -17,6 +17,7 @@
   tecf status                    – tudásbázis statisztika
   tecf export <fájl.jsonl>       – finomhangoló adatok exportja
   tecf serve [--port 8765]       – helyi, OpenAI-kompatibilis API szerver
+  tecf update                     – frissítés GitHubról (a tudás és a beállítások megmaradnak)
 
   SAJÁT NYELVI MODELL:
   tecf model info                 – hardver, ajánlott modellméret, állapot
@@ -259,6 +260,14 @@ def cmd_model(cfg: Config, a) -> None:
         print("A TecF Ai mostantól a saját modellt használja." if not a.off else "Visszaállítva az Ollama modellre.")
 
 
+def cmd_update(cfg: Config, a) -> None:
+    from tecf import updater
+    if a.mark:
+        updater.mark_current()
+    else:
+        updater.update(force=a.force)
+
+
 def cmd_serve(cfg: Config, a) -> None:
     from tecf.server import serve
     serve(cfg, a.host, a.port)
@@ -329,6 +338,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--chat", action="store_true", help="test: beszélgetés formátumban")
     p.add_argument("--off", action="store_true", help="use: vissza az Ollamára")
     p.set_defaults(fn=cmd_model)
+    p = sp.add_parser("update", help="frissítés GitHubról")
+    p.add_argument("--force", action="store_true", help="akkor is letölti, ha naprakész")
+    p.add_argument("--mark", action="store_true", help="telepítéskor: a jelenlegi változat rögzítése")
+    p.set_defaults(fn=cmd_update)
     p = sp.add_parser("serve")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8765)

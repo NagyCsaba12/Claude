@@ -36,6 +36,7 @@ class TecFApp:
         self._build()
         self.root.after(80, self._pump)
         self._run_bg(self._refresh_status)
+        threading.Thread(target=self._check_update, daemon=True).start()
 
     # ---------------- felület ----------------
     def _build(self) -> None:
@@ -46,7 +47,8 @@ class TecFApp:
         for text, cmd in [("📚 Tanulj témát", self._learn_topic), ("🔁 Tanuló üzem", self._learn_loop),
                           ("🌐 Alaptudás letöltése", self._bootstrap), ("📄 Dokumentum felvétele", self._ingest),
                           ("🧬 Saját modell", self._own_model),
-                          ("📊 Állapot", lambda: self._run_bg(self._show_stats))]:
+                          ("📊 Állapot", lambda: self._run_bg(self._show_stats)),
+                          ("⟳ Frissítés", self._update)]:
             tk.Button(top, text=text, command=cmd, bg=BG, fg=FG, relief="flat", activebackground=ACCENT,
                       padx=10).pack(side="left", padx=3)
 
@@ -228,6 +230,30 @@ class TecFApp:
                 self._model_stop = None
         # külön szálon, zárolás nélkül: saját adatbázis-kapcsolatot használ
         threading.Thread(target=work, daemon=True).start()
+
+    def _check_update(self) -> None:
+        from tecf import updater
+        if updater.is_installed_copy() and updater.check():
+            self._log("⟳ Új TecF Ai frissítés érhető el – kattints a Frissítés gombra.")
+
+    def _update(self) -> None:
+        from tecf import updater
+
+        def work():
+            try:
+                if updater.update(log=self._log):
+                    self.ui.put(self._restart)
+            except Exception as e:
+                self._log(f"Frissítési hiba: {type(e).__name__}: {e}")
+        threading.Thread(target=work, daemon=True).start()
+
+    def _restart(self) -> None:
+        if messagebox.askyesno("Frissítés", "A TecF Ai frissült. Újraindítsam most?"):
+            import subprocess
+            import sys
+            from tecf import updater
+            subprocess.Popen([sys.executable, "-m", "tecf", "gui"], cwd=str(updater.app_dir()))
+            self.root.destroy()
 
     def _show_stats(self) -> None:
         stats = self.brain.kb.stats()

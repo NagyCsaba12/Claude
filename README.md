@@ -43,6 +43,12 @@ A telepítő a következőket végzi el:
 
 Kapcsolók: `-Target E:\TecFAi` (más meghajtó), `-NoOllama`, `-NoBootstrap`.
 
+## Frissítés (újratelepítés nélkül)
+
+A TecF Ai indításkor megnézi, van-e új változata GitHubon, és ha van, szól az ablakban. A
+**⟳ Frissítés** gombbal (vagy a `tecf update` paranccsal) letölti, és újraindul. Csak a program
+cserélődik: a tudásbázis, a beállítások, az API kulcsok, a letöltött és a saját modellek megmaradnak.
+
 ## Alaptudás: a legjobb elérhető források
 
 A `tecf bootstrap` parancs a netről a legmegbízhatóbb, elsődleges forrásokat tölti le. Ezek magas
