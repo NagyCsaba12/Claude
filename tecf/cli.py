@@ -294,6 +294,16 @@ def cmd_update(cfg: Config, a) -> None:
         updater.update(force=a.force)
 
 
+def cmd_wake(cfg: Config, a) -> None:
+    from tecf.tools import network
+    if a.list or not a.host:
+        print(network.arp_table())
+        if not a.host:
+            print("\nBekapcsolás: tecf wake <IP> [--mac aa:bb:cc:dd:ee:ff]")
+        return
+    print(network.wake_host(a.host, a.mac or "", a.wait))
+
+
 def cmd_serve(cfg: Config, a) -> None:
     from tecf.server import serve
     serve(cfg, a.host, a.port)
@@ -368,6 +378,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--force", action="store_true", help="akkor is letölti, ha naprakész")
     p.add_argument("--mark", action="store_true", help="telepítéskor: a jelenlegi változat rögzítése")
     p.set_defaults(fn=cmd_update)
+    p = sp.add_parser("wake", help="kikapcsolt gép bekapcsolása (Wake-on-LAN)")
+    p.add_argument("host", nargs="?", help="a gép IP-címe, pl. 192.168.1.187")
+    p.add_argument("--mac", help="MAC-cím, ha a gép nincs megjegyezve")
+    p.add_argument("--wait", type=float, default=60, help="ennyi másodpercig várja, hogy feljöjjön")
+    p.add_argument("--list", action="store_true", help="ismert gépek és MAC-címek listája")
+    p.set_defaults(fn=cmd_wake)
     p = sp.add_parser("serve")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8765)

@@ -11,7 +11,7 @@ működik, és folyamatosan tanul a netről, a dokumentumaidból, más AI-któl 
 | 💻 **Programozó** | minden nyelven kódot ír, fájlba ment, Python kódot futtat és tesztel |
 | 📄 **Dokumentumok** | olvas: PDF, Word, Excel, PowerPoint, HTML, szöveg, forráskód · készít: Markdown, HTML, Word |
 | 🌐 **Internetes kutatás** | keresés (API kulcs nélkül), oldalak letöltése, a `robots.txt` szabályait betartja |
-| 🔌 **Hálózati eszközök** | ping, portellenőrzés, helyi hálózat felderítése, DNS; Cisco, MikroTik, Juniper, Aruba, HP, Huawei, Fortinet, Palo Alto eszközök SSH programozása (show / configure / backup) |
+| 🔌 **Hálózati eszközök** | ping, portellenőrzés, helyi hálózat felderítése, DNS, kikapcsolt gép bekapcsolása (Wake-on-LAN); Cisco, MikroTik, Juniper, Aruba, HP, Huawei, Fortinet, Palo Alto eszközök SSH programozása (show / configure / backup) |
 | 🧠 **Önálló tanulás** | tanuló üzem, tudáshiány felismerése, tényeket von ki, altémákat keres, tanul a rossz válaszaiból |
 | 🤖 **Más AI-k** | 27 szolgáltató név szerint (helyi és felhős), ezektől is tud tanulni |
 | 🔗 **Saját API** | OpenAI-kompatibilis helyi szerver, így más programok is használhatják |
